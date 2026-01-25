@@ -49,103 +49,49 @@ log('JS OK');
 <script src="https://unpkg.com/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
-var scene, camera, renderer, controls;
-
-window.onload = function () {
-
-  /* SCENE */
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x666666);
-
-  /* CAMERA */
-  camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    10000
-  );
-  camera.position.set(0, 2, 6);
-  camera.lookAt(0, 0, 0); // CRUCIAL
-
-  /* RENDERER */
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  /* LUMIÈRES */
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-  var light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(5, 10, 5);
-  scene.add(light);
-
-  /* CONTROLES */
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0, 0);
-  controls.update();
-
-  log('Scene prête');
-
-  /* GLB */
-  var loader = new THREE.GLTFLoader();
+var loader = new THREE.GLTFLoader();
 
 loader.load(
   './plane.glb',
   function (gltf) {
     log('GLB chargé');
-    scene.add(gltf.scene);
+
+    var model = gltf.scene;
+
+    // 🔹 Calcul bounding box
+    var box = new THREE.Box3().setFromObject(model);
+    var size = box.getSize(new THREE.Vector3());
+    var center = box.getCenter(new THREE.Vector3());
+
+    log('Taille modèle: ' +
+        size.x.toFixed(2) + ', ' +
+        size.y.toFixed(2) + ', ' +
+        size.z.toFixed(2)
+    );
+
+    // 🔹 Recentrage
+    model.position.sub(center);
+
+    // 🔹 Échelle automatique
+    var maxDim = Math.max(size.x, size.y, size.z);
+    var scale = 2 / maxDim; // 2 unités dans la scène
+    model.scale.setScalar(scale);
+
+    scene.add(model);
+
+    // 🔹 Placement caméra
+    camera.position.set(0, maxDim * 0.5, maxDim * 2);
+    camera.lookAt(0, 0, 0);
+    controls.update();
+
+    log('Modèle affiché');
   },
-  function (progress) {
-    log('Progression : ' + (progress.loaded/progress.total*100).toFixed(1) + '%');
-  },
+  undefined,
   function (err) {
     log('ERREUR GLB');
     log(err.message || err);
   }
 );
-
-
-      var model = gltf.scene;
-
-      var box = new THREE.Box3().setFromObject(model);
-      var size = box.getSize(new THREE.Vector3());
-      var center = box.getCenter(new THREE.Vector3());
-
-      model.position.sub(center);
-
-      var maxDim = Math.max(size.x, size.y, size.z);
-      var scale = 2 / maxDim;
-      model.scale.setScalar(scale);
-
-      scene.add(model);
-
-      camera.position.set(0, maxDim * 0.5, maxDim * 2);
-      camera.lookAt(0, 0, 0);
-      controls.update();
-
-      log('Modele visible');
-    },
-    null,
-    function (e) {
-      log('ERREUR GLB');
-      log(e.message || e);
-    }
-  );
-
-  animate();
-};
-
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-
-window.addEventListener('resize', function () {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
 </script>
-
 </body>
 </html>
