@@ -112,9 +112,62 @@
         button:hover {
             background: #1d4ed8;
         }
+        .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(11, 18, 32, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+.logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #e6e9f0;
+}
+
+.topbar nav {
+    display: flex;
+    gap: 16px;
+}
+
+.topbar nav a {
+    text-decoration: none;
+    color: #e6e9f0;
+    font-size: 0.95rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.topbar nav a:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.topbar nav a.primary {
+    background: #3b82f6;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.topbar nav a.primary:hover {
+    background: #2563eb;
+}
+
     </style>
 </head>
 <body>
+<header class="topbar">
+    <div class="logo">Kyky</div>
+    <nav>
+        <a href="flightplanner.html">Flight planner</a>
+        <a href="account.html">Compte</a>
+        <a href="auth.html" class="primary">Connexion / inscription</a>
+    </nav>
+</header>
 
 <div class="card">
     <h1 id="userName">Chargement…</h1>
