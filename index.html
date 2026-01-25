@@ -2,14 +2,10 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Test GLB iPad Debug</title>
+<title>GLB iPad Debug – FIX</title>
 
 <style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    background: #000;
-  }
+  body { margin: 0; overflow: hidden; background: #000; }
 
   #debugConsole {
     position: fixed;
@@ -27,7 +23,6 @@
   }
 
   .log { color: #00ff90; }
-  .warn { color: #ffcc00; }
   .error { color: #ff5555; }
 </style>
 </head>
@@ -36,125 +31,71 @@
 
 <div id="debugConsole"></div>
 
-<!-- Three.js -->
-<script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.159.0/examples/js/loaders/GLTFLoader.js"></script>
-
-<script>
-/* =======================
-   CONSOLE VISUELLE
-======================= */
+<script type="module">
+/* ================= CONSOLE VISUELLE ================= */
 
 const debugEl = document.getElementById('debugConsole');
 
-function writeLog(type, args) {
+function log(type, ...args) {
   const line = document.createElement('div');
   line.className = type;
-  line.textContent =
-    '[' + type.toUpperCase() + '] ' +
-    args.map(a => {
-      if (typeof a === 'object') {
-        try { return JSON.stringify(a); }
-        catch { return '[Object]'; }
-      }
-      return a;
-    }).join(' ');
+  line.textContent = `[${type.toUpperCase()}] ` + args.join(' ');
   debugEl.appendChild(line);
   debugEl.scrollTop = debugEl.scrollHeight;
 }
 
-const originalConsole = {
-  log: console.log,
-  warn: console.warn,
-  error: console.error
-};
+window.onerror = (msg, src, line) =>
+  log('error', msg, 'line', line);
 
-console.log = (...args) => {
-  originalConsole.log(...args);
-  writeLog('log', args);
-};
+window.addEventListener('unhandledrejection', e =>
+  log('error', 'PROMISE:', e.reason));
 
-console.warn = (...args) => {
-  originalConsole.warn(...args);
-  writeLog('warn', args);
-};
+/* ================= IMPORTS OFFICIELS ================= */
 
-console.error = (...args) => {
-  originalConsole.error(...args);
-  writeLog('error', args);
-};
+import * as THREE from 'https://unpkg.com/three@0.159.0/build/three.module.js';
+import { GLTFLoader } from 'https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js';
 
-window.onerror = function(message, source, lineno) {
-  writeLog('error', ['JS ERROR:', message, 'line:', lineno, source]);
-};
+/* ================= THREE.JS ================= */
 
-window.addEventListener('unhandledrejection', e => {
-  writeLog('error', ['PROMISE ERROR:', e.reason]);
-});
-
-/* =======================
-   THREE.JS SCÈNE
-======================= */
-
-console.log('Initialisation Three.js');
+log('log', 'Three.js chargé');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x222222);
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
 camera.position.set(3, 2, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 5);
-scene.add(light);
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-/* =======================
-   CHARGEMENT GLB
-======================= */
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5,10,5);
+scene.add(light);
 
-const loader = new THREE.GLTFLoader();
+/* ================= GLB ================= */
 
-console.log('Chargement de plane.glb');
+const loader = new GLTFLoader();
+log('log', 'Chargement plane.glb');
 
 loader.load(
   './plane.glb',
-  (gltf) => {
-    console.log('GLB chargé avec succès');
-
+  gltf => {
+    log('log', 'GLB chargé');
     const plane = gltf.scene;
-    plane.position.set(0, 0, 0);
-
-    // IMPORTANT : échelle de sécurité
-    plane.scale.set(0.01, 0.01, 0.01);
-
+    plane.scale.set(0.01,0.01,0.01);
     scene.add(plane);
   },
-  (progress) => {
-    if (progress.total) {
-      console.log(
-        'Progression:',
-        Math.round(progress.loaded / progress.total * 100) + '%'
-      );
-    }
+  p => {
+    if (p.total)
+      log('log', 'Progression', Math.round(p.loaded/p.total*100)+'%');
   },
-  (error) => {
-    console.error('ERREUR CHARGEMENT GLB:', error);
-  }
+  e => log('error', 'GLB ERROR', e)
 );
 
-/* =======================
-   RENDER LOOP
-======================= */
+/* ================= LOOP ================= */
 
 function animate() {
   requestAnimationFrame(animate);
@@ -162,14 +103,10 @@ function animate() {
 }
 animate();
 
-/* =======================
-   RESIZE
-======================= */
-
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 </script>
 
