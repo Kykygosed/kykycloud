@@ -1,132 +1,175 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Cloud</title>
+    <meta charset="UTF-8">
+    <title>Kyky – Connexion / Inscription</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#212234">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<!-- PWA MANIFEST INLINE -->
-<link rel="manifest" href="manifest.json">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(1000px 600px at top, #1e3a8a, #020617);
+            color: #e5e7eb;
+            font-family: Inter, system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-<!-- FIREBASE SDKs (officiels) -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(180deg, #020617, #020617cc);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 40px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+        }
 
-<style>
-* {
-  box-sizing: border-box;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
 
-body {
-  margin: 0;
-  height: 100vh;
-  background: #212234;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-}
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
 
-/* GLASS CARD */
-.card {
-  width: 340px;
-  padding: 40px;
-  border-radius: 22px;
-  background: rgba(255,255,255,0.06);
-  backdrop-filter: blur(14px);
-  box-shadow:
-    0 0 50px rgba(127,124,255,0.35),
-    inset 0 0 20px rgba(255,255,255,0.05);
-  text-align: center;
-}
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            font-weight: 600;
+        }
 
-/* LOGO */
-.logo {
-  width: 90px;
-  margin-bottom: 20px;
-  filter: drop-shadow(0 0 15px rgba(127,124,255,0.6));
-}
+        .tab.active {
+            background: #2563eb;
+        }
 
-/* INPUTS */
-input {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 14px;
-  border-radius: 10px;
-  border: none;
-  background: #2e2e48;
-  color: white;
-}
+        .form {
+            display: none;
+        }
 
-input:focus {
-  outline: 2px solid #7f7cff;
-}
+        .form.active {
+            display: block;
+        }
 
-/* BUTTONS */
-button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  background: linear-gradient(135deg, #7f7cff, #9d9bff);
-  color: black;
-}
+        label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
 
-button.secondary {
-  background: transparent;
-  border: 1px solid #7f7cff;
-  color: #7f7cff;
-}
+        input {
+            width: 100%;
+            margin-top: 6px;
+            margin-bottom: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #020617;
+            color: #fff;
+            outline: 1px solid rgba(255,255,255,0.1);
+        }
 
-#error {
-  margin-top: 15px;
-  color: #ff6b6b;
-  font-size: 0.9em;
-}
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
 
-/* CLOUD PAGE */
-.cloud {
-  display: none;
-}
+        button:hover {
+            background: #1d4ed8;
+        }
 
-.logout {
-  margin-top: 30px;
-  background: #ff6b6b;
-}
-</style>
+        .warning {
+            margin-top: 20px;
+            background: rgba(37,99,235,0.15);
+            border-left: 4px solid #2563eb;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .kyky-id {
+            margin-top: 10px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-align: center;
+            color: #60a5fa;
+        }
+
+        .error {
+            color: #f87171;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+    </style>
 </head>
-
 <body>
 
-<!-- AUTH -->
-<div class="card" id="authCard">
-  <img src="logo.png" class="logo" alt="Logo">
-  <input type="email" id="email" placeholder="Email">
-  <input type="password" id="password" placeholder="Mot de passe">
+<div class="container">
+    <h1>Kyky</h1>
 
-  <button onclick="login()">Connexion</button>
-  <button class="secondary" onclick="register()">Inscription</button>
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('login')">Connexion</div>
+        <div class="tab" onclick="showTab('register')">Inscription</div>
+    </div>
 
-  <div id="error"></div>
+    <!-- CONNEXION -->
+    <div class="form active" id="login">
+        <label>ID Kyky</label>
+        <input type="text" id="loginId" placeholder="XXXXXXXXXX">
+
+        <label>Mot de passe</label>
+        <input type="password" id="loginPassword">
+
+        <button onclick="login()">Connexion</button>
+        <div class="error" id="loginError"></div>
+    </div>
+
+    <!-- INSCRIPTION -->
+    <div class="form" id="register">
+        <label>Email</label>
+        <input type="email" id="registerEmail">
+
+        <label>Mot de passe</label>
+        <input type="password" id="registerPassword">
+
+        <button onclick="register()">Créer un compte</button>
+
+        <div class="warning" id="idBox" style="display:none;">
+            <strong>ATTENTION :</strong><br>
+            voici votre ID kyky. Cet ID ne doit pas etre perdu et ne réapparaitra pas 2 fois.
+            Merci de le noter.
+            <div class="kyky-id" id="generatedId"></div>
+        </div>
+
+        <div class="error" id="registerError"></div>
+    </div>
 </div>
 
-<!-- CLOUD -->
-<div class="card cloud" id="cloudCard">
-  <img src="logo.png" class="logo" alt="Logo">
-  <h2>Cloud sécurisé</h2>
-  <p>Firebase Auth actif</p>
-  <button class="logout" onclick="logout()">Déconnexion</button>
-</div>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-/* ================= FIREBASE ================= */
-
 const firebaseConfig = {
   apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
   authDomain: "kyky-c3471.firebaseapp.com",
@@ -140,65 +183,59 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.database();
 
-/* ================= UI ================= */
+function showTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
 
-const authCard = document.getElementById("authCard");
-const cloudCard = document.getElementById("cloudCard");
-const errorBox = document.getElementById("error");
-
-auth.onAuthStateChanged(user => {
-  authCard.style.display = user ? "none" : "block";
-  cloudCard.style.display = user ? "block" : "none";
-});
-
-/* ================= ACTIONS ================= */
-
-function login() {
-  auth.signInWithEmailAndPassword(email.value, password.value)
-    .catch(err => errorBox.textContent = err.message);
+    document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+    document.getElementById(tab).classList.add('active');
 }
 
-function register() {
-  auth.createUserWithEmailAndPassword(email.value, password.value)
-    .catch(err => errorBox.textContent = err.message);
+async function generateUniqueId() {
+    let id, snapshot;
+    do {
+        id = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        snapshot = await db.ref("ids/" + id).get();
+    } while (snapshot.exists());
+    return id;
 }
 
-function logout() {
-  auth.signOut();
-}
+async function register() {
+    const email = registerEmail.value;
+    const password = registerPassword.value;
 
-/* ================= PWA ================= */
+    try {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const kykyId = await generateUniqueId();
 
-// Manifest généré dynamiquement (1 seul fichier)
-const manifest = {
-  name: "Cloud",
-  short_name: "Cloud",
-  start_url: ".",
-  display: "standalone",
-  background_color: "#212234",
-  theme_color: "#212234",
-  icons: [
-    {
-      src: "logo.png",
-      sizes: "512x512",
-      type: "image/png"
+        await db.ref("ids/" + kykyId).set({
+            uid: cred.user.uid,
+            email: email
+        });
+
+        document.getElementById("generatedId").innerText = kykyId;
+        document.getElementById("idBox").style.display = "block";
+    } catch (e) {
+        registerError.innerText = e.message;
     }
-  ]
-};
+}
 
-const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
-const manifestURL = URL.createObjectURL(blob);
-document.querySelector('link[rel="manifest"]').setAttribute("href", manifestURL);
+async function login() {
+    const kykyId = loginId.value;
+    const password = loginPassword.value;
 
-// Service Worker minimal
-if ("serviceWorker" in navigator) {
-  const swCode = `
-    self.addEventListener("install", e => self.skipWaiting());
-    self.addEventListener("fetch", e => {});
-  `;
-  const swBlob = new Blob([swCode], { type: "text/javascript" });
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+    try {
+        const snap = await db.ref("ids/" + kykyId).get();
+        if (!snap.exists()) throw new Error("ID Kyky invalide");
+
+        const email = snap.val().email;
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = "account.html";
+    } catch (e) {
+        loginError.innerText = e.message;
+    }
 }
 </script>
 
