@@ -1,18 +1,103 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Test GLB</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-  </style>
+<meta charset="UTF-8">
+<title>Test GLB iPad Debug</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #debugConsole {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 40%;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.95);
+    color: #00ff90;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 6px;
+    z-index: 9999;
+  }
+
+  .log { color: #00ff90; }
+  .warn { color: #ffcc00; }
+  .error { color: #ff5555; }
+</style>
 </head>
+
 <body>
 
+<div id="debugConsole"></div>
+
+<!-- Three.js -->
 <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.159.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+/* =======================
+   CONSOLE VISUELLE
+======================= */
+
+const debugEl = document.getElementById('debugConsole');
+
+function writeLog(type, args) {
+  const line = document.createElement('div');
+  line.className = type;
+  line.textContent =
+    '[' + type.toUpperCase() + '] ' +
+    args.map(a => {
+      if (typeof a === 'object') {
+        try { return JSON.stringify(a); }
+        catch { return '[Object]'; }
+      }
+      return a;
+    }).join(' ');
+  debugEl.appendChild(line);
+  debugEl.scrollTop = debugEl.scrollHeight;
+}
+
+const originalConsole = {
+  log: console.log,
+  warn: console.warn,
+  error: console.error
+};
+
+console.log = (...args) => {
+  originalConsole.log(...args);
+  writeLog('log', args);
+};
+
+console.warn = (...args) => {
+  originalConsole.warn(...args);
+  writeLog('warn', args);
+};
+
+console.error = (...args) => {
+  originalConsole.error(...args);
+  writeLog('error', args);
+};
+
+window.onerror = function(message, source, lineno) {
+  writeLog('error', ['JS ERROR:', message, 'line:', lineno, source]);
+};
+
+window.addEventListener('unhandledrejection', e => {
+  writeLog('error', ['PROMISE ERROR:', e.reason]);
+});
+
+/* =======================
+   THREE.JS SCÈNE
+======================= */
+
+console.log('Initialisation Three.js');
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x222222);
 
@@ -31,29 +116,61 @@ document.body.appendChild(renderer.domElement);
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 5);
 scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+/* =======================
+   CHARGEMENT GLB
+======================= */
 
 const loader = new THREE.GLTFLoader();
+
+console.log('Chargement de plane.glb');
 
 loader.load(
   './plane.glb',
   (gltf) => {
-    console.log('Modèle chargé', gltf);
+    console.log('GLB chargé avec succès');
+
     const plane = gltf.scene;
-    plane.scale.set(1, 1, 1);
+    plane.position.set(0, 0, 0);
+
+    // IMPORTANT : échelle de sécurité
+    plane.scale.set(0.01, 0.01, 0.01);
+
     scene.add(plane);
   },
-  undefined,
+  (progress) => {
+    if (progress.total) {
+      console.log(
+        'Progression:',
+        Math.round(progress.loaded / progress.total * 100) + '%'
+      );
+    }
+  },
   (error) => {
-    console.error('Erreur GLB:', error);
+    console.error('ERREUR CHARGEMENT GLB:', error);
   }
 );
+
+/* =======================
+   RENDER LOOP
+======================= */
 
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
 animate();
+
+/* =======================
+   RESIZE
+======================= */
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 </script>
 
 </body>
