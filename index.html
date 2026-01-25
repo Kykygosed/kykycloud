@@ -2,112 +2,88 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>GLB iPad Debug – FIX</title>
-
+<title>Three.js iPad SAFE</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #000; }
-
-  #debugConsole {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    max-height: 40%;
-    overflow-y: auto;
-    background: rgba(0,0,0,0.95);
-    color: #00ff90;
-    font-family: monospace;
-    font-size: 12px;
-    padding: 6px;
-    z-index: 9999;
-  }
-
-  .log { color: #00ff90; }
-  .error { color: #ff5555; }
+body { margin:0; overflow:hidden; background:#000; }
+#debug {
+  position:fixed;
+  bottom:0; left:0;
+  width:100%; max-height:40%;
+  background:#000;
+  color:#0f0;
+  font-family:monospace;
+  font-size:12px;
+  overflow:auto;
+  z-index:9999;
+}
 </style>
 </head>
-
 <body>
 
-<div id="debugConsole"></div>
+<div id="debug"></div>
 
-<script type="module">
-/* ================= CONSOLE VISUELLE ================= */
-
-const debugEl = document.getElementById('debugConsole');
-
-function log(type, ...args) {
-  const line = document.createElement('div');
-  line.className = type;
-  line.textContent = `[${type.toUpperCase()}] ` + args.join(' ');
-  debugEl.appendChild(line);
-  debugEl.scrollTop = debugEl.scrollHeight;
+<script>
+function log(msg){
+  document.getElementById('debug').innerHTML += msg + '<br>';
 }
+log('JS démarré');
+</script>
 
-window.onerror = (msg, src, line) =>
-  log('error', msg, 'line', line);
+<!-- Three.js CLASSIQUE -->
+<script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
 
-window.addEventListener('unhandledrejection', e =>
-  log('error', 'PROMISE:', e.reason));
+<!-- GLTFLoader COMPAT iPad -->
+<script src="https://unpkg.com/three@0.159.0/examples/js/loaders/GLTFLoader.js"></script>
 
-/* ================= IMPORTS OFFICIELS ================= */
+<script>
+log('Three.js chargé');
+log('THREE.GLTFLoader = ' + typeof THREE.GLTFLoader);
 
-import * as THREE from 'https://unpkg.com/three@0.159.0/build/three.module.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js';
+var scene, camera, renderer;
 
-/* ================= THREE.JS ================= */
+window.onload = function () {
 
-log('log', 'Three.js chargé');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x222222);
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x222222);
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+  camera.position.set(3,2,5);
 
-const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
-camera.position.set(3, 2, 5);
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(5,10,5);
+  scene.add(light);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  log('Scène initialisée');
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5,10,5);
-scene.add(light);
+  var loader = new THREE.GLTFLoader();
 
-/* ================= GLB ================= */
+  loader.load(
+    './plane.glb',
+    function (gltf) {
+      log('GLB chargé');
+      var plane = gltf.scene;
+      plane.scale.set(0.01,0.01,0.01);
+      scene.add(plane);
+    },
+    undefined,
+    function (e) {
+      log('ERREUR GLB');
+      log(e.message || e);
+    }
+  );
 
-const loader = new GLTFLoader();
-log('log', 'Chargement plane.glb');
-
-loader.load(
-  './plane.glb',
-  gltf => {
-    log('log', 'GLB chargé');
-    const plane = gltf.scene;
-    plane.scale.set(0.01,0.01,0.01);
-    scene.add(plane);
-  },
-  p => {
-    if (p.total)
-      log('log', 'Progression', Math.round(p.loaded/p.total*100)+'%');
-  },
-  e => log('error', 'GLB ERROR', e)
-);
-
-/* ================= LOOP ================= */
+  animate();
+};
 
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
-animate();
-
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
 </script>
 
 </body>
