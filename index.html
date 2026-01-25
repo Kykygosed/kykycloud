@@ -1,78 +1,155 @@
-<script src="https://unpkg.com/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Three.js GLB Viewer iPad</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #debug {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 35%;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.95);
+    color: #00ff90;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 6px;
+    z-index: 9999;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="debug"></div>
 
 <script>
 function log(msg){
   document.getElementById('debug').innerHTML += msg + '<br>';
 }
+log('JS démarré');
+</script>
+
+<!-- THREE.JS (version compatible iPad) -->
+<script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.159.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+log('Three.js chargé');
 
 var scene, camera, renderer, controls;
 
 window.onload = function () {
 
+  /* ================= SCÈNE ================= */
+
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x222222);
 
-  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 5000);
-  camera.position.set(0, 2, 5);
+  camera = new THREE.PerspectiveCamera(
+    60,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    10000
+  );
 
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(innerWidth, innerHeight);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
+  /* ================= LUMIÈRES ================= */
+
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(5,10,5);
+
+  var light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(10, 20, 10);
   scene.add(light);
+
+  /* ================= CONTRÔLES ================= */
 
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.enableZoom = true;
+  controls.enablePan = true;
 
-  log('Scène prête');
+  log('Scène initialisée');
+
+  /* ================= CHARGEMENT GLB ================= */
 
   var loader = new THREE.GLTFLoader();
+
+  log('Chargement de plane.glb');
 
   loader.load(
     './plane.glb',
     function (gltf) {
 
+      log('GLB chargé');
+
       var model = gltf.scene;
 
-      // 🔹 Calcul de la bounding box
+      /* ===== Calcul taille & centrage ===== */
+
       var box = new THREE.Box3().setFromObject(model);
-      var size = box.getSize(new THREE.Vector3()).length();
+      var size = box.getSize(new THREE.Vector3());
       var center = box.getCenter(new THREE.Vector3());
 
-      // 🔹 Recentrage
+      log('Taille modèle: ' +
+        size.x.toFixed(2) + ', ' +
+        size.y.toFixed(2) + ', ' +
+        size.z.toFixed(2)
+      );
+
       model.position.sub(center);
 
-      // 🔹 Mise à l’échelle automatique
-      var scale = 5 / size;
+      /* ===== Mise à l’échelle automatique ===== */
+
+      var maxDim = Math.max(size.x, size.y, size.z);
+      var scale = 10 / maxDim;
       model.scale.setScalar(scale);
 
       scene.add(model);
 
-      // 🔹 Ajustement caméra
-      camera.near = size / 100;
-      camera.far = size * 100;
+      /* ===== Placement caméra ===== */
+
+      camera.near = maxDim / 100;
+      camera.far = maxDim * 100;
       camera.updateProjectionMatrix();
 
-      camera.position.set(0, size * 0.2, size * 1.2);
+      camera.position.set(0, maxDim * 0.4, maxDim * 2);
       controls.target.set(0, 0, 0);
       controls.update();
 
-      log('Modèle affiché correctement');
+      log('Modèle affiché');
     },
-    undefined,
-    function (e) {
+    function (progress) {
+      if (progress.total) {
+        log('Chargement ' +
+          Math.round(progress.loaded / progress.total * 100) + '%'
+        );
+      }
+    },
+    function (error) {
       log('ERREUR GLB');
-      log(e.message || e);
+      log(error.message || error);
     }
   );
 
   animate();
 };
+
+/* ================= RENDER LOOP ================= */
 
 function animate() {
   requestAnimationFrame(animate);
@@ -80,9 +157,14 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth/innerHeight;
+/* ================= RESIZE ================= */
+
+window.addEventListener('resize', function () {
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
+
+</body>
+</html>
