@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Cloud</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#212234">
+
+<!-- PWA MANIFEST INLINE -->
+<link rel="manifest" href="manifest.json">
+
+<!-- FIREBASE SDKs (officiels) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  background: #212234;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+/* GLASS CARD */
+.card {
+  width: 340px;
+  padding: 40px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 50px rgba(127,124,255,0.35),
+    inset 0 0 20px rgba(255,255,255,0.05);
+  text-align: center;
+}
+
+/* LOGO */
+.logo {
+  width: 90px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 15px rgba(127,124,255,0.6));
+}
+
+/* INPUTS */
+input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  border: none;
+  background: #2e2e48;
+  color: white;
+}
+
+input:focus {
+  outline: 2px solid #7f7cff;
+}
+
+/* BUTTONS */
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  background: linear-gradient(135deg, #7f7cff, #9d9bff);
+  color: black;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #7f7cff;
+  color: #7f7cff;
+}
+
+#error {
+  margin-top: 15px;
+  color: #ff6b6b;
+  font-size: 0.9em;
+}
+
+/* CLOUD PAGE */
+.cloud {
+  display: none;
+}
+
+.logout {
+  margin-top: 30px;
+  background: #ff6b6b;
+}
+</style>
+</head>
+
+<body>
+
+<!-- AUTH -->
+<div class="card" id="authCard">
+  <img src="logo.png" class="logo" alt="Logo">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Mot de passe">
+
+  <button onclick="login()">Connexion</button>
+  <button class="secondary" onclick="register()">Inscription</button>
+
+  <div id="error"></div>
+</div>
+
+<!-- CLOUD -->
+<div class="card cloud" id="cloudCard">
+  <img src="logo.png" class="logo" alt="Logo">
+  <h2>Cloud sécurisé</h2>
+  <p>Firebase Auth actif</p>
+  <button class="logout" onclick="logout()">Déconnexion</button>
+</div>
+
+<script>
+/* ================= FIREBASE ================= */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471",
+  storageBucket: "kyky-c3471.firebasestorage.app",
+  messagingSenderId: "658643330578",
+  appId: "1:658643330578:web:758dc26d5504a503e39acb",
+  measurementId: "G-245RE41YQK"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+/* ================= UI ================= */
+
+const authCard = document.getElementById("authCard");
+const cloudCard = document.getElementById("cloudCard");
+const errorBox = document.getElementById("error");
+
+auth.onAuthStateChanged(user => {
+  authCard.style.display = user ? "none" : "block";
+  cloudCard.style.display = user ? "block" : "none";
+});
+
+/* ================= ACTIONS ================= */
+
+function login() {
+  auth.signInWithEmailAndPassword(email.value, password.value)
+    .catch(err => errorBox.textContent = err.message);
+}
+
+function register() {
+  auth.createUserWithEmailAndPassword(email.value, password.value)
+    .catch(err => errorBox.textContent = err.message);
+}
+
+function logout() {
+  auth.signOut();
+}
+
+/* ================= PWA ================= */
+
+// Manifest généré dynamiquement (1 seul fichier)
+const manifest = {
+  name: "Cloud",
+  short_name: "Cloud",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#212234",
+  theme_color: "#212234",
+  icons: [
+    {
+      src: "logo.png",
+      sizes: "512x512",
+      type: "image/png"
+    }
+  ]
+};
+
+const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+const manifestURL = URL.createObjectURL(blob);
+document.querySelector('link[rel="manifest"]').setAttribute("href", manifestURL);
+
+// Service Worker minimal
+if ("serviceWorker" in navigator) {
+  const swCode = `
+    self.addEventListener("install", e => self.skipWaiting());
+    self.addEventListener("fetch", e => {});
+  `;
+  const swBlob = new Blob([swCode], { type: "text/javascript" });
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+}
+</script>
+
+</body>
+</html>
