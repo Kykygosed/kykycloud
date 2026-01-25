@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kyky – Compte</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(1000px 600px at top, #020617, #020617);
+            color: #e5e7eb;
+            font-family: Inter, system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 900px;
+            background: #020617;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+        }
+
+        .status-box {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        .status-red {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .status-green {
+            background: #064e3b;
+            color: #bbf7d0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 25px;
+        }
+
+        .section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        .row {
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .admin-yes {
+            color: #ef4444;
+            font-weight: 700;
+        }
+
+        .admin-no {
+            color: #e5e7eb;
+        }
+
+        .input-box {
+            margin-top: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #020617;
+            color: white;
+            outline: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1 id="userName">Chargement…</h1>
+
+    <div id="statusBox" class="status-box status-red">offline</div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Détails pilote</h2>
+            <div class="row" id="flightHours">Nombre d’heures de vol : N/A</div>
+            <div class="row" id="level">Niveau : BP1</div>
+        </div>
+
+        <div class="section">
+            <h2>Détails utilisateur</h2>
+            <div class="row" id="admin">Admin : non</div>
+            <div class="row" id="accountStatus">Compte actif</div>
+        </div>
+    </div>
+
+    <div class="input-box" id="nameBox" style="display:none;">
+        <input type="text" id="nameInput" placeholder="Prénom NOM">
+        <button onclick="saveName()">Enregistrer</button>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471",
+  storageBucket: "kyky-c3471.firebasestorage.app",
+  messagingSenderId: "658643330578",
+  appId: "1:658643330578:web:758dc26d5504a503e39acb",
+  measurementId: "G-245RE41YQK"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = "auth.html";
+        return;
+    }
+
+    const userRef = db.ref("users/" + user.uid);
+    const snap = await userRef.get();
+
+    if (!snap.exists()) {
+        await userRef.set({
+            email: user.email,
+            flighthours: "N/A",
+            name: "",
+            online: "N/A",
+            admin: false,
+            level: "BP1",
+            accountstatus: "active"
+        });
+    }
+
+    const data = (await userRef.get()).val();
+
+    if (!data.name) {
+        document.getElementById("nameBox").style.display = "block";
+    } else {
+        document.getElementById("userName").innerText = data.name;
+    }
+
+    const online = data.online === "N/A" ? "offline" : data.online;
+    document.getElementById("statusBox").innerText = online;
+
+    document.getElementById("flightHours").innerText =
+        "Nombre d’heures de vol : " + data.flighthours;
+
+    document.getElementById("level").innerText =
+        "Niveau : " + data.level;
+
+    const adminEl = document.getElementById("admin");
+    if (data.admin === true) {
+        adminEl.innerHTML = '<span class="admin-yes">Admin : oui</span>';
+    } else {
+        adminEl.innerText = "Admin : non";
+    }
+
+    const accStatus = document.getElementById("accountStatus");
+    if (data.accountstatus === "suspended") {
+        accStatus.innerHTML = '<span style="color:#ef4444;">Compte suspendu</span>';
+    } else {
+        accStatus.innerHTML = '<span style="color:#22c55e;">Compte actif</span>';
+    }
+});
+
+async function saveName() {
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    const user = auth.currentUser;
+    await db.ref("users/" + user.uid + "/name").set(name);
+    document.getElementById("userName").innerText = name;
+    document.getElementById("nameBox").style.display = "none";
+}
+</script>
+
+</body>
+</html>
