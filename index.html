@@ -89,10 +89,21 @@ window.onload = function () {
   /* GLB */
   var loader = new THREE.GLTFLoader();
 
-  loader.load(
-    './plane.glb',
-    function (gltf) {
-      log('GLB chargé');
+loader.load(
+  './plane.glb',
+  function (gltf) {
+    log('GLB chargé');
+    scene.add(gltf.scene);
+  },
+  function (progress) {
+    log('Progression : ' + (progress.loaded/progress.total*100).toFixed(1) + '%');
+  },
+  function (err) {
+    log('ERREUR GLB');
+    log(err.message || err);
+  }
+);
+
 
       var model = gltf.scene;
 
