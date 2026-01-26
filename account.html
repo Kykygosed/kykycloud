@@ -266,7 +266,7 @@ auth.onAuthStateChanged(async user => {
     updateRatings(data);
 });
 
-function fillProfile(data, isOwnProfile) {
+function fillData(data, isOwnProfile) {
     document.getElementById("userName").innerText =
         data.name || "Profil incomplet";
 
