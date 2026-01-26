@@ -267,6 +267,13 @@ auth.onAuthStateChanged(async user => {
 });
 
 function fillProfile(data, isOwnProfile) {
+    const fields = ["name","email","country","city","division","birthdate"];
+    fields.forEach(f => {
+        const el = document.getElementById(f);
+        if (userData[f]) {
+            el.value = userData[f];
+            el.readOnly = true;
+        }
     document.getElementById("userName").innerText =
         data.name || "Profil incomplet";
 
