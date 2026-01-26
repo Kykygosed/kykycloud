@@ -309,7 +309,7 @@ async function saveProfile() {
             updates[f] = document.getElementById(f).value.trim();
         }
     });
-
+if (viewedUid && viewedUid !== currentUser.uid) return;
 
     if (Object.keys(updates).length) {
         await db.ref("users/" + currentUser.uid).update(updates);
