@@ -315,23 +315,23 @@ function updateRatings() {
 
     // Admin badge (toujours affiché si admin)
     if (userData.admin === true) {
-        box.innerHTML += `<img src="assets/ratings/admin.png" alt="Admin">`;
+        box.innerHTML += `<img src="./admin.png" alt="Admin">`;
     }
 
     // Ratings cumulés
-    box.innerHTML += `<img src="assets/ratings/BP1.png" alt="BP1">`;
+    box.innerHTML += `<img src="./BP1.png" alt="BP1">`;
 
     if (h >= 10) {
-        box.innerHTML += `<img src="assets/ratings/BP2.png" alt="BP2">`;
+        box.innerHTML += `<img src="./BP2.png" alt="BP2">`;
     }
     if (h >= 25) {
-        box.innerHTML += `<img src="assets/ratings/BP3.png" alt="BP3">`;
+        box.innerHTML += `<img src="./BP3.png" alt="BP3">`;
     }
     if (h >= 50) {
-        box.innerHTML += `<img src="assets/ratings/DP.png" alt="DP">`;
+        box.innerHTML += `<img src="./DP.png" alt="DP">`;
     }
     if (h >= 100) {
-        box.innerHTML += `<img src="assets/ratings/PP.png" alt="PP">`;
+        box.innerHTML += `<img src="./PP.png" alt="PP">`;
     }
 
     // Niveau = plus haut rating atteint
