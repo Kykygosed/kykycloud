@@ -16,7 +16,7 @@
             font-family: Inter, system-ui, sans-serif;
         }
 
-        /* TOPBAR (identique index) */
+        /* TOPBAR */
         header {
             display: flex;
             justify-content: space-between;
@@ -61,11 +61,20 @@
             margin-bottom: 30px;
         }
 
+        h2 {
+            margin-bottom: 20px;
+        }
+
         .card {
             background: rgba(255,255,255,0.03);
             border-radius: 18px;
             padding: 30px;
             margin-bottom: 30px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            opacity: 0.7;
         }
 
         input {
@@ -96,16 +105,7 @@
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .row {
-            font-size: 0.95rem;
-            margin-bottom: 8px;
-        }
-
-        .label {
-            opacity: 0.7;
+            gap: 25px;
         }
     </style>
 </head>
@@ -123,37 +123,60 @@
 <main>
     <h1>Flight Planner</h1>
 
+    <!-- SIMBRIEF -->
     <div class="card" id="simbriefBox" style="display:none;">
         <h2>Connexion SimBrief</h2>
         <p>Entrez votre ID SimBrief</p>
         <input type="text" id="simbriefId" placeholder="SimBrief User ID">
-        <button onclick="saveSimbrief()">Enregistrer</button>
+        <button>Enregistrer</button>
     </div>
 
+    <!-- NOUVEAU VOL -->
     <div class="card" id="plannerBox" style="display:none;">
-        <button onclick="loadFlight()">+ Nouveau vol</button>
+        <button>+ Nouveau vol</button>
     </div>
 
+    <!-- DONNÉES DU VOL -->
     <div class="card" id="flightData" style="display:none;">
         <h2>Détails du vol</h2>
+
         <div class="grid">
             <div>
-                <div class="row"><span class="label">Callsign :</span> <span id="callsign"></span></div>
-                <div class="row"><span class="label">Avion :</span> <span id="aircraft"></span></div>
-                <div class="row"><span class="label">Règles de vol :</span> <span id="rules"></span></div>
-                <div class="row"><span class="label">Altitude croisière :</span> <span id="cruise"></span></div>
-                <div class="row"><span class="label">Route :</span> <span id="route"></span></div>
+                <label>Callsign</label>
+                <input id="callsign">
+
+                <label>Avion</label>
+                <input id="aircraft">
+
+                <label>Règles de vol</label>
+                <input id="rules">
+
+                <label>Altitude de croisière</label>
+                <input id="cruise">
+
+                <label>Route</label>
+                <input id="route">
             </div>
+
             <div>
-                <div class="row"><span class="label">Départ :</span> <span id="dep"></span></div>
-                <div class="row"><span class="label">Arrivée :</span> <span id="arr"></span></div>
-                <div class="row"><span class="label">Dégagement :</span> <span id="alt"></span></div>
-                <div class="row"><span class="label">Heure départ :</span> <span id="depTime"></span></div>
-                <div class="row"><span class="label">EET total :</span> <span id="eet"></span></div>
+                <label>Aéroport de départ</label>
+                <input id="dep">
+
+                <label>Aéroport d’arrivée</label>
+                <input id="arr">
+
+                <label>Aéroport de dégagement</label>
+                <input id="alt">
+
+                <label>Heure de départ</label>
+                <input id="depTime">
             </div>
         </div>
+
+        <button>Envoyer FPL</button>
     </div>
-</main>
+
+
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -168,8 +191,7 @@ const firebaseConfig = {
   projectId: "kyky-c3471",
   storageBucket: "kyky-c3471.firebasestorage.app",
   messagingSenderId: "658643330578",
-  appId: "1:658643330578:web:758dc26d5504a503e39acb",
-  measurementId: "G-245RE41YQK"
+  appId: "1:658643330578:web:758dc26d5504a503e39acb"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -186,53 +208,84 @@ auth.onAuthStateChanged(async user => {
     }
 
     currentUser = user;
-    const ref = db.ref("users/" + user.uid + "/simbrief");
-    const snap = await ref.get();
 
-    if (!snap.exists()) {
-        document.getElementById("simbriefBox").style.display = "block";
-    } else {
-        simbriefUserId = snap.val();
-        document.getElementById("plannerBox").style.display = "block";
+    const simbriefSnap = await db.ref("users/" + user.uid + "/simbrief").get();
+    if (!simbriefSnap.exists()) {
+        simbriefBox.style.display = "block";
+        return;
+    }
+
+    simbriefUserId = simbriefSnap.val();
+    plannerBox.style.display = "block";
+
+    // Charger vol existant si présent
+    const flightSnap = await db.ref("users/" + user.uid + "/actualflight").get();
+    if (flightSnap.exists()) {
+        fillForm(flightSnap.val());
+        flightData.style.display = "block";
     }
 });
 
 async function saveSimbrief() {
-    const id = document.getElementById("simbriefId").value.trim();
+    const id = simbriefId.value.trim();
     if (!id) return;
-
     await db.ref("users/" + currentUser.uid + "/simbrief").set(id);
     simbriefUserId = id;
-
-    document.getElementById("simbriefBox").style.display = "none";
-    document.getElementById("plannerBox").style.display = "block";
+    simbriefBox.style.display = "none";
+    plannerBox.style.display = "block";
 }
 
 async function loadFlight() {
     const url = `https://www.simbrief.com/api/xml.fetcher.php?userid=${simbriefUserId}&json=1`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await fetch(url).then(r => r.json());
 
-    const f = data.general;
-    const a = data.aircraft;
-    const o = data.origin;
-    const d = data.destination;
+    const flight = {
+        callsign: data.general?.callsign || "",
+        aircraft: data.aircraft?.name || "",
+        rules: data.general?.flight_rules || "",
+        cruise: data.general?.initial_altitude || "",
+        route: data.general?.route || "",
+        dep: data.origin?.icao_code || "",
+        arr: data.destination?.icao_code || "",
+        alt: data.destination?.alternate || "",
+        depTime: data.general?.sched_out || ""
+    };
 
-    document.getElementById("callsign").innerText = f.callsign;
-    document.getElementById("aircraft").innerText = a.name;
-    document.getElementById("rules").innerText = f.flight_rules;
-    document.getElementById("cruise").innerText = f.initial_altitude;
-    document.getElementById("route").innerText = f.route;
+    fillForm(flight);
+    flightData.style.display = "block";
+}
 
-    document.getElementById("dep").innerText = o.icao_code;
-    document.getElementById("arr").innerText = d.icao_code;
-    document.getElementById("alt").innerText = d.alternate;
-    document.getElementById("depTime").innerText = f.sched_out;
-    document.getElementById("eet").innerText = f.est_time_enroute;
+function fillForm(f) {
+    callsign.value = f.callsign || "";
+    aircraft.value = f.aircraft || "";
+    rules.value = f.rules || "";
+    cruise.value = f.cruise || "";
+    route.value = f.route || "";
+    dep.value = f.dep || "";
+    arr.value = f.arr || "";
+    alt.value = f.alt || "";
+    depTime.value = f.depTime || "";
+}
 
-    document.getElementById("flightData").style.display = "block";
+async function sendFPL() {
+    const flight = {
+        callsign: callsign.value.trim(),
+        aircraft: aircraft.value.trim(),
+        rules: rules.value.trim(),
+        cruise: cruise.value.trim(),
+        route: route.value.trim(),
+        dep: dep.value.trim(),
+        arr: arr.value.trim(),
+        alt: alt.value.trim(),
+        depTime: depTime.value.trim(),
+        updatedAt: Date.now()
+    };
+
+    await db.ref("users/" + currentUser.uid + "/actualflight").set(flight);
+    alert("Plan de vol envoyé");
 }
 </script>
+</main>
 
 </body>
 </html>
