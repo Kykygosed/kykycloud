@@ -236,33 +236,36 @@ auth.onAuthStateChanged(user => {
     const nav = document.getElementById("navLinks");
     const loginBtn = document.getElementById("loginBtn");
     if (user) {
-        // Récupère le nom complet
         db.ref("users/" + user.uid).get().then(snap => {
             const data = snap.val() || {};
             const fullName = data.name || "Profil";
             
-            // Remplace le bouton connexion
+            // Masque le bouton connexion
             loginBtn.style.display = "none";
 
-            // Affiche le nom + bouton déconnexion
-            const nameBtn = document.createElement("span");
-            nameBtn.innerText = fullName;
-            nameBtn.style.padding = "8px 14px";
-            nameBtn.style.borderRadius = "8px";
-            nameBtn.style.background = "#1d4ed8";
-            nameBtn.style.color = "white";
-            nameBtn.style.fontWeight = "600";
+            // Crée un lien vers account.html
+            const nameLink = document.createElement("a");
+            nameLink.href = "account.html";
+            nameLink.innerText = fullName;
+            nameLink.style.fontWeight = "600";
+            nameLink.style.padding = "8px 14px";
+            nameLink.style.borderRadius = "8px";
+            nameLink.style.background = "#1d4ed8";
+            nameLink.style.color = "white";
+            nameLink.className = "primary"; // pour effet hover cohérent
 
+            // Crée le bouton déconnexion
             const logoutBtn = document.createElement("button");
             logoutBtn.innerText = "Déconnexion";
             logoutBtn.className = "logout";
             logoutBtn.onclick = () => auth.signOut().then(() => location.reload());
 
-            nav.appendChild(nameBtn);
+            nav.appendChild(nameLink);
             nav.appendChild(logoutBtn);
         });
     }
 });
+
 </script>
 
 </body>
