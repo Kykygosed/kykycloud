@@ -243,7 +243,7 @@ auth.onAuthStateChanged(user => {
             // Masque le bouton connexion
             loginBtn.style.display = "none";
 
-            // Crée un lien vers account.html
+            // Crée un lien vers account.html avec le pseudo
             const nameLink = document.createElement("a");
             nameLink.href = "account.html";
             nameLink.innerText = fullName;
@@ -252,7 +252,24 @@ auth.onAuthStateChanged(user => {
             nameLink.style.borderRadius = "8px";
             nameLink.style.background = "#1d4ed8";
             nameLink.style.color = "white";
-            nameLink.className = "primary"; // pour effet hover cohérent
+            nameLink.className = "primary"; // effet hover cohérent
+
+            nav.appendChild(nameLink);
+
+            // Si l'utilisateur est admin, ajouter bouton Administration
+            if (data.admin === true) {
+                const adminBtn = document.createElement("a");
+                adminBtn.href = "admin.html";
+                adminBtn.innerText = "Administration";
+                adminBtn.style.fontWeight = "600";
+                adminBtn.style.padding = "8px 14px";
+                adminBtn.style.borderRadius = "8px";
+                adminBtn.style.background = "#f59e0b"; // couleur différente pour se démarquer
+                adminBtn.style.color = "white";
+                adminBtn.className = "primary";
+
+                nav.appendChild(adminBtn);
+            }
 
             // Crée le bouton déconnexion
             const logoutBtn = document.createElement("button");
@@ -260,7 +277,6 @@ auth.onAuthStateChanged(user => {
             logoutBtn.className = "logout";
             logoutBtn.onclick = () => auth.signOut().then(() => location.reload());
 
-            nav.appendChild(nameLink);
             nav.appendChild(logoutBtn);
         });
     }
