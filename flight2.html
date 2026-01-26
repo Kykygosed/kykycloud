@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Kyky – Flight Planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin:0;
+    font-family:Inter,system-ui,sans-serif;
+    background:#020617;
+    color:#e5e7eb;
+}
+
+/* TOPBAR */
+header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 40px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    background:rgba(11,18,32,.8);
+}
+.logo{font-size:1.4rem;font-weight:700}
+nav a{
+    color:#e6e9f0;
+    text-decoration:none;
+    margin-left:14px;
+    padding:8px 14px;
+    border-radius:8px;
+}
+nav a.primary{background:#3b82f6;font-weight:600}
+
+/* CONTENT */
+main{max-width:1100px;margin:auto;padding:40px}
+h1{margin-bottom:25px}
+
+button{
+    background:#2563eb;
+    color:white;
+    border:none;
+    padding:10px 16px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+}
+button.red{background:#7f1d1d}
+button.green{background:#065f46}
+
+input{
+    width:100%;
+    padding:10px;
+    background:#020617;
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:8px;
+    color:white;
+    margin-bottom:10px;
+}
+
+.card{
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:20px;
+    cursor:pointer;
+}
+
+.card.green{background:#064e3b}
+.card.red{background:#7f1d1d}
+
+.details{display:none;margin-top:15px;font-size:.9rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.search{margin:30px 0}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">Kyky</div>
+<nav>
+<a href="flightplanner.html">Flight planner</a>
+<a href="account.html">Compte</a>
+<a href="auth.html" class="primary">Connexion / inscription</a>
+</nav>
+</header>
+
+<main>
+
+<h1>Flight Planner</h1>
+
+<div id="newFlightBox">
+<button onclick="loadFlight()">+ Nouveau vol</button>
+</div>
+
+<div id="currentFlight"></div>
+
+<div class="search">
+<input type="text" id="searchInput" placeholder="Recherche par callsign ou aéroport" oninput="renderFlights()">
+</div>
+
+<h2>Vos vols :</h2>
+<div id="flightList"></div>
+
+</main>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471",
+  storageBucket: "kyky-c3471.firebasestorage.app",
+  messagingSenderId: "658643330578",
+  appId: "1:658643330578:web:758dc26d5504a503e39acb"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let uid;
+let actualFlight = null;
+let latestFlights = {};
+
+auth.onAuthStateChanged(async user=>{
+    if(!user){location.href="auth.html";return;}
+    uid=user.uid;
+    loadFlightsFromDB();
+});
+
+async function loadFlight(){
+    const snap = await db.ref(`users/${uid}/simbrief`).get();
+    if(!snap.exists()){alert("ID SimBrief manquant");return;}
+
+    const url=`https://www.simbrief.com/api/xml.fetcher.php?userid=${snap.val()}&json=1`;
+    const data=await fetch(url).then(r=>r.json());
+
+    actualFlight={
+        callsign:data.general.callsign||"",
+        departure:data.origin.icao_code||"",
+        arrival:data.destination.icao_code||"",
+        alternate:data.destination.alternate||"",
+        aircraft:data.aircraft.name||"",
+        route:data.general.route||"",
+        altitude:data.general.initial_altitude||"",
+        rules:data.general.flight_rules||"",
+        sched_out:data.general.sched_out||"",
+        timestamp:Date.now()
+    };
+
+    await db.ref(`users/${uid}/actualflight`).set(actualFlight);
+    renderCurrentFlight();
+}
+
+async function loadFlightsFromDB(){
+    const snap=await db.ref(`users/${uid}`).get();
+    const data=snap.val()||{};
+    actualFlight=data.actualflight||null;
+    latestFlights=data.latestflightplans||{};
+    renderCurrentFlight();
+    renderFlights();
+}
+
+function renderCurrentFlight(){
+    const box=document.getElementById("currentFlight");
+    box.innerHTML="";
+    if(!actualFlight) return;
+
+    const c=document.createElement("div");
+    c.className="card green";
+    c.innerHTML=`<strong>${actualFlight.callsign}</strong> ${actualFlight.departure} → ${actualFlight.arrival}`;
+    c.onclick=()=>toggleDetails(c);
+    c.appendChild(detailsHTML(actualFlight,true));
+    box.appendChild(c);
+}
+
+function renderFlights(){
+    const list=document.getElementById("flightList");
+    list.innerHTML="";
+    const q=document.getElementById("searchInput").value.toLowerCase();
+
+    Object.values(latestFlights)
+    .sort((a,b)=>b.timestamp-a.timestamp)
+    .forEach(f=>{
+        if(q && !`${f.callsign}${f.departure}${f.arrival}`.toLowerCase().includes(q)) return;
+        const c=document.createElement("div");
+        c.className="card red";
+        c.innerHTML=`<strong>${f.callsign}</strong> ${f.departure} → ${f.arrival}`;
+        c.onclick=()=>toggleDetails(c);
+        c.appendChild(detailsHTML(f,false));
+        list.appendChild(c);
+    });
+}
+
+function detailsHTML(f,editable){
+    const d=document.createElement("div");
+    d.className="details";
+    d.innerHTML=`
+    <div class="grid">
+        <div>Avion: ${f.aircraft}</div>
+        <div>Règles: ${f.rules}</div>
+        <div>Altitude: ${f.altitude}</div>
+        <div>Route: ${f.route}</div>
+    </div>
+    ${editable ? `<button class="red" onclick="finishFlight(event)">Terminer le vol</button>`:""}
+    `;
+    return d;
+}
+
+function toggleDetails(card){
+    const d=card.querySelector(".details");
+    d.style.display=d.style.display==="block"?"none":"block";
+}
+
+async function finishFlight(e){
+    e.stopPropagation();
+    const id=db.ref().push().key;
+    await db.ref(`users/${uid}/latestflightplans/${id}`).set(actualFlight);
+    await db.ref(`users/${uid}/actualflight`).remove();
+    actualFlight=null;
+    loadFlightsFromDB();
+}
+</script>
+
+</body>
+</html>
