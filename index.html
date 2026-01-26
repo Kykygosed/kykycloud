@@ -1,140 +1,157 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kyky – Réseau MSFS</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kyky – Réseau MSFS</title>
 
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-    <style>
-        :root {
-            --bg: #0b1220;
-            --bg-alt: #111a2e;
-            --text: #e6e9f0;
-            --muted: #9aa4bf;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --border: rgba(255, 255, 255, 0.08);
-        }
+<style>
+:root {
+    --bg: #0b1220;
+    --bg-alt: #111a2e;
+    --text: #e6e9f0;
+    --muted: #9aa4bf;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --border: rgba(255, 255, 255, 0.08);
+}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Inter", system-ui, sans-serif;
-        }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Inter, system-ui, sans-serif;
+}
 
-        body {
-            min-height: 100vh;
-            background: radial-gradient(1200px 600px at top, #142047, var(--bg));
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-        }
+body {
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at top, #142047, var(--bg));
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+}
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 40px;
-            border-bottom: 1px solid var(--border);
-            background: rgba(11, 18, 32, 0.8);
-            backdrop-filter: blur(10px);
-        }
+header {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11, 18, 32, 0.85);
+    backdrop-filter: blur(10px);
+}
 
-        .logo {
-            font-size: 1.4rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
+.logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
 
-        nav {
-            display: flex;
-            gap: 16px;
-        }
+.search-box {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
 
-        nav a {
-            text-decoration: none;
-            color: var(--text);
-            font-size: 0.95rem;
-            padding: 8px 14px;
-            border-radius: 8px;
-            transition: background 0.2s, color 0.2s;
-        }
+.search-box input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    background: #020617;
+    color: white;
+    outline: 1px solid rgba(255,255,255,0.1);
+}
 
-        nav a:hover {
-            background: rgba(255, 255, 255, 0.06);
-        }
+.search-results {
+    position: absolute;
+    top: 45px;
+    left: 0;
+    right: 0;
+    background: #020617;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    display: none;
+    z-index: 10;
+}
 
-        nav a.primary {
-            background: var(--primary);
-            color: #fff;
-            font-weight: 600;
-        }
+.search-results div {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
 
-        nav a.primary:hover {
-            background: var(--primary-hover);
-        }
+.search-results div:hover {
+    background: rgba(255,255,255,0.06);
+}
 
-        main {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-        }
+nav {
+    display: flex;
+    gap: 16px;
+}
 
-        .card {
-            max-width: 800px;
-            background: linear-gradient(180deg, var(--bg-alt), var(--bg));
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 50px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-        }
+nav a {
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.95rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+}
 
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            letter-spacing: -1px;
-        }
+nav a.primary {
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+}
 
-        p {
-            font-size: 1.1rem;
-            line-height: 1.7;
-            color: var(--muted);
-            max-width: 700px;
-        }
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
 
-        .footer-note {
-            margin-top: 40px;
-            font-size: 0.85rem;
-            color: var(--muted);
-            opacity: 0.8;
-        }
+.card {
+    max-width: 800px;
+    background: linear-gradient(180deg, var(--bg-alt), var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 50px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
 
-        @media (max-width: 768px) {
-            header {
-                flex-direction: column;
-                gap: 16px;
-            }
+h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
 
-            h1 {
-                font-size: 2.3rem;
-            }
-
-            .card {
-                padding: 30px;
-            }
-        }
-    </style>
+p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--muted);
+}
+</style>
 </head>
+
 <body>
 
 <header>
     <div class="logo">Kyky</div>
+
+    <div class="search-box">
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Rechercher un utilisateur"
+            oninput="searchUser()"
+        >
+        <div id="results" class="search-results"></div>
+    </div>
+
     <nav>
         <a href="flightplanner.html">Flight planner</a>
         <a href="account.html">Compte</a>
@@ -147,19 +164,55 @@
         <h1>Bienvenue!</h1>
         <p>
             Kyky est un projet work-in-progress de réseau multijoueur pour Microsoft Flight Simulator 2024 et 2020,
-            permettant de s’entraîner pour de plus gros réseaux.  
+            permettant de s’entraîner pour de plus gros réseaux.
             D’autres fonctionnalités arriveront plus tard.
         </p>
-
-        <div class="footer-note">
-            © 2026 – Projet Kyky • Microsoft Flight Simulator n’est pas affilié
-        </div>
     </div>
 </main>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
-    // JS prêt pour plus tard (Firebase, auth, etc.)
-    console.log("Kyky landing page loaded");
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+async function searchUser() {
+    const input = document.getElementById("searchInput").value.toLowerCase().trim();
+    const box = document.getElementById("results");
+
+    if (input.length < 2) {
+        box.style.display = "none";
+        return;
+    }
+
+    const snap = await db.ref("users").limitToFirst(50).get();
+    box.innerHTML = "";
+
+    snap.forEach(child => {
+        const data = child.val();
+        if (!data.name) return;
+
+        if (data.name.toLowerCase().includes(input)) {
+            const div = document.createElement("div");
+            div.innerText = data.name;
+            div.onclick = () => {
+                window.location.href = `account.html?uid=${child.key}`;
+            };
+            box.appendChild(div);
+        }
+    });
+
+    box.style.display = box.children.length ? "block" : "none";
+}
 </script>
 
 </body>
