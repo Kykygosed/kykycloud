@@ -130,6 +130,13 @@ button:hover {
     opacity: 0.3;
     font-style: italic;
 }
+    .ratings {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .admin-yes { color: #ef4444; font-weight: 700; }
 </style>
 </head>
@@ -303,23 +310,40 @@ async function saveProfile() {
 
 function updateRatings() {
     const h = Number(userData.flighthours) || 0;
-    let level = "BP1";
+    const box = document.getElementById("ratings");
+    box.innerHTML = "";
 
+    // Admin badge (toujours affiché si admin)
+    if (userData.admin === true) {
+        box.innerHTML += `<img src="assets/ratings/admin.png" alt="Admin">`;
+    }
+
+    // Ratings cumulés
+    box.innerHTML += `<img src="assets/ratings/BP1.png" alt="BP1">`;
+
+    if (h >= 10) {
+        box.innerHTML += `<img src="assets/ratings/BP2.png" alt="BP2">`;
+    }
+    if (h >= 25) {
+        box.innerHTML += `<img src="assets/ratings/BP3.png" alt="BP3">`;
+    }
+    if (h >= 50) {
+        box.innerHTML += `<img src="assets/ratings/DP.png" alt="DP">`;
+    }
+    if (h >= 100) {
+        box.innerHTML += `<img src="assets/ratings/PP.png" alt="PP">`;
+    }
+
+    // Niveau = plus haut rating atteint
+    let level = "BP1";
     if (h >= 100) level = "PP";
     else if (h >= 50) level = "DP";
     else if (h >= 25) level = "BP3";
     else if (h >= 10) level = "BP2";
 
     db.ref("users/" + currentUser.uid + "/level").set(level);
-
-    const box = document.getElementById("ratings");
-    box.innerHTML = "";
-
-    if (userData.admin === true)
-        box.innerHTML += `<img src="./admin.png">`;
-
-    box.innerHTML += `<img src="./${level}.png">`;
 }
+
 </script>
 
 </body>
