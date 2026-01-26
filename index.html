@@ -15,6 +15,7 @@
     --muted: #9aa4bf;
     --primary: #3b82f6;
     --primary-hover: #2563eb;
+    --red: #ef4444;
     --border: rgba(255, 255, 255, 0.08);
 }
 
@@ -36,7 +37,7 @@ body {
 header {
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 20px;
     padding: 20px 40px;
     border-bottom: 1px solid var(--border);
     background: rgba(11, 18, 32, 0.85);
@@ -90,7 +91,7 @@ header {
 
 nav {
     display: flex;
-    gap: 16px;
+    gap: 12px;
 }
 
 nav a {
@@ -105,6 +106,19 @@ nav a.primary {
     background: var(--primary);
     color: white;
     font-weight: 600;
+}
+
+nav button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+nav button.logout {
+    background: var(--red);
+    color: white;
 }
 
 main {
@@ -152,10 +166,11 @@ p {
         <div id="results" class="search-results"></div>
     </div>
 
-    <nav>
+    <nav id="navLinks">
         <a href="flightplanner.html">Flight planner</a>
-        <a href="account.html">Compte</a>
-        <a href="auth.html" class="primary">Connexion / inscription</a>
+        <a href="radar.html">Kyky Radar</a>
+        <a href="help.html">Aide</a>
+        <a href="auth.html" class="primary" id="loginBtn">Connexion / inscription</a>
     </nav>
 </header>
 
@@ -172,6 +187,7 @@ p {
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
@@ -183,8 +199,10 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.database();
 
+// 🔎 Recherche d'utilisateur
 async function searchUser() {
     const input = document.getElementById("searchInput").value.toLowerCase().trim();
     const box = document.getElementById("results");
@@ -200,7 +218,6 @@ async function searchUser() {
     snap.forEach(child => {
         const data = child.val();
         if (!data.name) return;
-
         if (data.name.toLowerCase().includes(input)) {
             const div = document.createElement("div");
             div.innerText = data.name;
@@ -213,6 +230,39 @@ async function searchUser() {
 
     box.style.display = box.children.length ? "block" : "none";
 }
+
+// 🔑 Gestion de la topbar selon connexion
+auth.onAuthStateChanged(user => {
+    const nav = document.getElementById("navLinks");
+    const loginBtn = document.getElementById("loginBtn");
+    if (user) {
+        // Récupère le nom complet
+        db.ref("users/" + user.uid).get().then(snap => {
+            const data = snap.val() || {};
+            const fullName = data.name || "Profil";
+            
+            // Remplace le bouton connexion
+            loginBtn.style.display = "none";
+
+            // Affiche le nom + bouton déconnexion
+            const nameBtn = document.createElement("span");
+            nameBtn.innerText = fullName;
+            nameBtn.style.padding = "8px 14px";
+            nameBtn.style.borderRadius = "8px";
+            nameBtn.style.background = "#1d4ed8";
+            nameBtn.style.color = "white";
+            nameBtn.style.fontWeight = "600";
+
+            const logoutBtn = document.createElement("button");
+            logoutBtn.innerText = "Déconnexion";
+            logoutBtn.className = "logout";
+            logoutBtn.onclick = () => auth.signOut().then(() => location.reload());
+
+            nav.appendChild(nameBtn);
+            nav.appendChild(logoutBtn);
+        });
+    }
+});
 </script>
 
 </body>
