@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kyky – Flight Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(1200px 700px at top, #020617, #020617);
+            color: #e5e7eb;
+            font-family: Inter, system-ui, sans-serif;
+        }
+
+        /* TOPBAR (identique index) */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(11, 18, 32, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        nav {
+            display: flex;
+            gap: 16px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #e6e9f0;
+            font-size: 0.95rem;
+            padding: 8px 14px;
+            border-radius: 8px;
+        }
+
+        nav a.primary {
+            background: #3b82f6;
+            font-weight: 600;
+        }
+
+        main {
+            padding: 50px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 18px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #020617;
+            color: white;
+            outline: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .row {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .label {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">Kyky</div>
+    <nav>
+        <a href="flightplanner.html">Flight planner</a>
+        <a href="account.html">Compte</a>
+        <a href="auth.html" class="primary">Connexion / inscription</a>
+    </nav>
+</header>
+
+<main>
+    <h1>Flight Planner</h1>
+
+    <div class="card" id="simbriefBox" style="display:none;">
+        <h2>Connexion SimBrief</h2>
+        <p>Entrez votre ID SimBrief</p>
+        <input type="text" id="simbriefId" placeholder="SimBrief User ID">
+        <button onclick="saveSimbrief()">Enregistrer</button>
+    </div>
+
+    <div class="card" id="plannerBox" style="display:none;">
+        <button onclick="loadFlight()">+ Nouveau vol</button>
+    </div>
+
+    <div class="card" id="flightData" style="display:none;">
+        <h2>Détails du vol</h2>
+        <div class="grid">
+            <div>
+                <div class="row"><span class="label">Callsign :</span> <span id="callsign"></span></div>
+                <div class="row"><span class="label">Avion :</span> <span id="aircraft"></span></div>
+                <div class="row"><span class="label">Règles de vol :</span> <span id="rules"></span></div>
+                <div class="row"><span class="label">Altitude croisière :</span> <span id="cruise"></span></div>
+                <div class="row"><span class="label">Route :</span> <span id="route"></span></div>
+            </div>
+            <div>
+                <div class="row"><span class="label">Départ :</span> <span id="dep"></span></div>
+                <div class="row"><span class="label">Arrivée :</span> <span id="arr"></span></div>
+                <div class="row"><span class="label">Dégagement :</span> <span id="alt"></span></div>
+                <div class="row"><span class="label">Heure départ :</span> <span id="depTime"></span></div>
+                <div class="row"><span class="label">EET total :</span> <span id="eet"></span></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471",
+  storageBucket: "kyky-c3471.firebasestorage.app",
+  messagingSenderId: "658643330578",
+  appId: "1:658643330578:web:758dc26d5504a503e39acb",
+  measurementId: "G-245RE41YQK"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUser;
+let simbriefUserId;
+
+auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = "auth.html";
+        return;
+    }
+
+    currentUser = user;
+    const ref = db.ref("users/" + user.uid + "/simbrief");
+    const snap = await ref.get();
+
+    if (!snap.exists()) {
+        document.getElementById("simbriefBox").style.display = "block";
+    } else {
+        simbriefUserId = snap.val();
+        document.getElementById("plannerBox").style.display = "block";
+    }
+});
+
+async function saveSimbrief() {
+    const id = document.getElementById("simbriefId").value.trim();
+    if (!id) return;
+
+    await db.ref("users/" + currentUser.uid + "/simbrief").set(id);
+    simbriefUserId = id;
+
+    document.getElementById("simbriefBox").style.display = "none";
+    document.getElementById("plannerBox").style.display = "block";
+}
+
+async function loadFlight() {
+    const url = `https://www.simbrief.com/api/xml.fetcher.php?userid=${simbriefUserId}&json=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const f = data.general;
+    const a = data.aircraft;
+    const o = data.origin;
+    const d = data.destination;
+
+    document.getElementById("callsign").innerText = f.callsign;
+    document.getElementById("aircraft").innerText = a.name;
+    document.getElementById("rules").innerText = f.flight_rules;
+    document.getElementById("cruise").innerText = f.initial_altitude;
+    document.getElementById("route").innerText = f.route;
+
+    document.getElementById("dep").innerText = o.icao_code;
+    document.getElementById("arr").innerText = d.icao_code;
+    document.getElementById("alt").innerText = d.alternate;
+    document.getElementById("depTime").innerText = f.sched_out;
+    document.getElementById("eet").innerText = f.est_time_enroute;
+
+    document.getElementById("flightData").style.display = "block";
+}
+</script>
+
+</body>
+</html>
