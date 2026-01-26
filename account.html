@@ -239,8 +239,8 @@ const db = firebase.database();
 const urlParams = new URLSearchParams(window.location.search);
 const viewedUid = urlParams.get("uid"); // null si profil perso
 
+let currentUser;  // ✅ défini correctement
 let userData = {};
-let currentUser;
 
 auth.onAuthStateChanged(async user => {
     if (!user) {
@@ -248,6 +248,7 @@ auth.onAuthStateChanged(async user => {
         return;
     }
 
+    currentUser = user;  // ✅ important pour saveProfile
     const myUid = user.uid;
     const targetUid = viewedUid ? viewedUid : myUid;
     const isOwnProfile = targetUid === myUid;
@@ -261,62 +262,69 @@ auth.onAuthStateChanged(async user => {
     }
 
     const data = snap.val();
+    userData = data; // sauvegarde pour saveProfile
 
     fillProfile(data, isOwnProfile);
     updateRatings(data);
 });
 
 function fillProfile(data, isOwnProfile) {
-    const fields = ["name","email","country","city","division","birthdate"];
-    fields.forEach(f => {
-        const el = document.getElementById(f);
-        if (userData[f]) {
-            el.value = userData[f];
-            el.readOnly = true;
-        }
-    document.getElementById("userName").innerText =
-        data.name || "Profil incomplet";
+    // Nom affiché en haut
+    document.getElementById("userName").innerText = data.name || "Profil incomplet";
 
+    // Statut en ligne
     const online = data.online === "N/A" ? "offline" : data.online;
     const statusBox = document.getElementById("statusBox");
     statusBox.innerText = online;
     statusBox.className =
         "status-box " + (online === "offline" ? "status-red" : "status-green");
 
+    // Infos pilote
     document.getElementById("flightHours").innerText =
         "Nombre d’heures de vol : " + (data.flighthours ?? "N/A");
-
     document.getElementById("level").innerText =
         "Niveau : " + (data.level || "BP1");
 
+    // Infos utilisateur
     document.getElementById("admin").innerHTML =
         data.admin
             ? '<span class="admin-yes">Admin : oui</span>'
             : "Admin : non";
-
     document.getElementById("accountStatus").innerHTML =
         data.accountstatus === "suspended"
             ? '<span style="color:#ef4444;">Compte suspendu</span>'
             : '<span style="color:#22c55e;">Compte actif</span>';
 
-    // 🔒 Si ce n’est PAS ton profil → lecture seule
+    // ✅ Remplissage des inputs
+    document.getElementById("name").value = data.name || "";
+    document.getElementById("email").value = data.email || "";
+    document.getElementById("country").value = data.country || "";
+    document.getElementById("city").value = data.city || "";
+    document.getElementById("division").value = data.division || "";
+    document.getElementById("birthdate").value = data.birthdate || "";
+
+    // 🔒 Lecture seule si ce n’est pas ton profil
     if (!isOwnProfile) {
         const inputs = document.querySelectorAll("input");
-        inputs.forEach(i => i.style.display = "none");
-
+        inputs.forEach(i => i.setAttribute("readonly", true));
         const btn = document.querySelector("button");
         if (btn) btn.style.display = "none";
     }
 }
 
 async function saveProfile() {
+    if (!currentUser) return; // sécurité
+
     const updates = {};
     ["name","email","country","city","division","birthdate"].forEach(f => {
-        if (!userData[f] && document.getElementById(f).value.trim()) {
-            updates[f] = document.getElementById(f).value.trim();
+        const val = document.getElementById(f).value.trim();
+        if (val !== (userData[f] || "")) {
+            updates[f] = val;
         }
     });
-if (viewedUid && viewedUid !== currentUser.uid) return;
+
+    // Empêche la modification d’un profil d’un autre utilisateur
+    if (viewedUid && viewedUid !== currentUser.uid) return;
 
     if (Object.keys(updates).length) {
         await db.ref("users/" + currentUser.uid).update(updates);
@@ -329,9 +337,7 @@ function updateRatings(data) {
     const box = document.getElementById("ratings");
     box.innerHTML = "";
 
-    if (data.admin === true) {
-        box.innerHTML += `<img src="./admin.png">`;
-    }
+    if (data.admin === true) box.innerHTML += `<img src="./admin.png">`;
 
     box.innerHTML += `<img src="./BP1.png">`;
     if (h >= 10) box.innerHTML += `<img src="./BP2.png">`;
@@ -339,8 +345,8 @@ function updateRatings(data) {
     if (h >= 50) box.innerHTML += `<img src="./DP.png">`;
     if (h >= 100) box.innerHTML += `<img src="./PP.png">`;
 }
-
 </script>
+
 
 </body>
 </html>
