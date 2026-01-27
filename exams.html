@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Kyky – Examens</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: #020617;
+    color: #e5e7eb;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+main {
+    padding: 40px;
+    max-width: 900px;
+    margin: auto;
+}
+
+.card {
+    background: #020617;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 30px;
+}
+
+button {
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.question {
+    margin-bottom: 25px;
+}
+
+.answers label {
+    display: block;
+    margin: 6px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+</style>
+</head>
+
+<body>
+
+<main>
+<div class="card" id="content">
+    <p id="statusText">Vous n’avez aucun examen terminé.</p>
+    <button onclick="startExam()">Nouvel examen</button>
+</div>
+</main>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUser;
+let selectedQuestions = [];
+
+auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = "auth.html";
+        return;
+    }
+
+    currentUser = user;
+
+    // Vérifie si examen déjà passé
+    const snap = await db.ref("exams").orderByChild("userId").equalTo(user.uid).get();
+    if (snap.exists()) {
+        showExamTable(snap);
+    }
+});
+
+async function startExam() {
+    const userSnap = await db.ref("users/" + currentUser.uid).get();
+    const userData = userSnap.val();
+
+    if ((Number(userData.flighthours) || 0) < 25) {
+        alert("Vous devez avoir au moins 25 heures de vol.");
+        return;
+    }
+
+    loadExam();
+}
+
+async function loadExam() {
+    const snap = await db.ref("questions/BP3").get();
+    const questions = [];
+
+    snap.forEach(q => {
+        questions.push({ id: q.key, ...q.val() });
+    });
+
+    selectedQuestions = questions.sort(() => 0.5 - Math.random()).slice(0, 20);
+
+    const content = document.getElementById("content");
+    content.innerHTML = `<h2>Sélectionnez la bonne réponse à chaque question.</h2>`;
+
+    selectedQuestions.forEach((q, index) => {
+        const div = document.createElement("div");
+        div.className = "question";
+        div.innerHTML = `<strong>${index + 1}. ${q.title}</strong>`;
+
+        const answersDiv = document.createElement("div");
+        answersDiv.className = "answers";
+
+        Object.entries(q.answers).forEach(([id, text]) => {
+            answersDiv.innerHTML += `
+                <label>
+                    <input type="radio" name="q${index}" value="${id}">
+                    ${text}
+                </label>
+            `;
+        });
+
+        div.appendChild(answersDiv);
+        content.appendChild(div);
+    });
+
+    const btn = document.createElement("button");
+    btn.innerText = "Envoyer";
+    btn.onclick = submitExam;
+    content.appendChild(btn);
+}
+
+async function submitExam() {
+    const answers = {};
+
+    for (let i = 0; i < selectedQuestions.length; i++) {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (!selected) {
+            alert("Veuillez répondre à toutes les questions.");
+            return;
+        }
+        answers[selectedQuestions[i].id] = selected.value;
+    }
+
+    const examId = db.ref("exams").push().key;
+
+    await db.ref("exams/" + examId).set({
+        userId: currentUser.uid,
+        exam: "BP3",
+        examstate: "pending",
+        answers: answers
+    });
+
+    location.reload();
+}
+
+function showExamTable(snap) {
+    const content = document.getElementById("content");
+    content.innerHTML = `
+        <h2>Vos examens</h2>
+        <table>
+            <tr>
+                <th>Examen</th>
+                <th>Statut</th>
+            </tr>
+        </table>
+    `;
+
+    const table = content.querySelector("table");
+
+    snap.forEach(e => {
+        const data = e.val();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${data.exam}</td>
+            <td>${data.examstate}</td>
+        `;
+        table.appendChild(row);
+    });
+}
+</script>
+
+</body>
+</html>
