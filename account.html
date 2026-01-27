@@ -361,20 +361,51 @@ async function saveProfile() {
     }
 }
 
-function updateRatings(data) {
-    const h = Number(data.flighthours) || 0;
+
+async function updateRatings(data) {
     const box = document.getElementById("ratings");
     box.innerHTML = "";
 
+    const uid = viewedUid || currentUser.uid;
+    const h = Number(data.flighthours) || 0;
+
+    // Récupération des examens passés par l'utilisateur
+    const examsSnap = await db.ref("exams").orderByChild("userId").equalTo(uid).get();
+    let bp3Passed = false;
+
+    if (examsSnap.exists()) {
+        examsSnap.forEach(e => {
+            const exam = e.val();
+            if ((exam.exam === "BP3") && (exam.examstate === "success")) {
+                bp3Passed = true;
+            }
+        });
+    }
+
+    // Construction des images de ratings
     if (data.admin === true) box.innerHTML += `<img src="./admin.png">`;
 
     box.innerHTML += `<img src="./BP1.png">`;
     if (h >= 10) box.innerHTML += `<img src="./BP2.png">`;
-    if (h >= 25) box.innerHTML += `<img src="./BP3.png">`;
-    if (h >= 50) box.innerHTML += `<img src="./DP.png">`;
-    if (h >= 100) box.innerHTML += `<img src="./PP.png">`;
+    if (bp3Passed) box.innerHTML += `<img src="./BP3.png">`;
+    if (bp3Passed && h >= 50) box.innerHTML += `<img src="./DP.png">`;
+    if (bp3Passed && h >= 100) box.innerHTML += `<img src="./PP.png">`;
+
+    // Détermination du niveau correct
+    let correctLevel = "BP1";
+    if (h >= 10) correctLevel = "BP2";
+    if (bp3Passed) correctLevel = "BP3";
+    if (bp3Passed && h >= 50) correctLevel = "DP";
+    if (bp3Passed && h >= 100) correctLevel = "PP";
+
+    // Corrige le niveau si incohérent
+    if (data.level !== correctLevel) {
+        await db.ref("users/" + uid).update({ level: correctLevel });
+        document.getElementById("level").innerText = "Niveau : " + correctLevel;
+    }
 }
 </script>
+
 
 
 </body>
