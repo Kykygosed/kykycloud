@@ -268,6 +268,7 @@ auth.onAuthStateChanged(async user => {
     const targetUid = viewedUid || myUid;
     const isOwnProfile = targetUid === myUid;
 
+    // Récupération des données utilisateur
     const userSnap = await db.ref("users/" + targetUid).get();
     if (!userSnap.exists()) {
         document.getElementById("userName").innerText = "Utilisateur introuvable";
@@ -277,14 +278,14 @@ auth.onAuthStateChanged(async user => {
     userData = userSnap.val();
 
     fillProfile(userData, isOwnProfile);
-    await updateRatings(userData, targetUid);
+
+    // Met à jour niveau et images selon flighthours et bp3passed
+    await updateRatingsAndLevel(targetUid);
 });
 
 function fillProfile(data, isOwnProfile) {
-    // Nom affiché en haut
     document.getElementById("userName").innerText = data.name || "Profil incomplet";
 
-    // Statut online
     const statusBox = document.getElementById("statusBox");
     if (!data.online || data.online === "N/A") {
         statusBox.innerText = "offline";
@@ -294,11 +295,9 @@ function fillProfile(data, isOwnProfile) {
         statusBox.className = "status-box status-green";
     }
 
-    // Infos pilote
     document.getElementById("flightHours").innerText = "Nombre d’heures de vol : " + (data.flighthours ?? "N/A");
     document.getElementById("level").innerText = "Niveau : " + (data.level || "BP1");
 
-    // Infos utilisateur
     document.getElementById("admin").innerHTML = data.admin ? '<span class="admin-yes">Admin : oui</span>' : "Admin : non";
 
     const accountStatusEl = document.getElementById("accountStatus");
@@ -316,7 +315,6 @@ function fillProfile(data, isOwnProfile) {
     document.getElementById("division").value = data.division || "";
     document.getElementById("birthdate").value = data.birthdate || "";
 
-    // Lecture seule si ce n'est pas ton profil
     if (!isOwnProfile) {
         document.querySelectorAll("input").forEach(i => i.setAttribute("readonly", true));
         const btn = document.querySelector("button");
@@ -333,7 +331,7 @@ async function saveProfile() {
         if (val !== (userData[f] || "")) updates[f] = val;
     });
 
-    if (viewedUid && viewedUid !== currentUser.uid) return; // sécurité
+    if (viewedUid && viewedUid !== currentUser.uid) return;
 
     if (Object.keys(updates).length) {
         await db.ref("users/" + (viewedUid || currentUser.uid)).update(updates);
@@ -349,44 +347,36 @@ async function updateRatingsAndLevel(uid) {
     const data = snap.val();
     const h = Number(data.flighthours) || 0;
 
+    // Détermination du niveau correct
     let newLevel = "BP1";
-
     if (h >= 10) newLevel = "BP2";
 
-    // Vérification BP3 seulement si l'utilisateur a passé BP3
-    if (h >= 25 && data.bp3passed === true) {
-        newLevel = "BP3";
-        if (h >= 50) newLevel = "DP";
-        if (h >= 100) newLevel = "PP";
-    }
+    // Vérification BP3 et niveaux supérieurs uniquement si bp3passed === true
+    if (h >= 25 && data.bp3passed === true) newLevel = "BP3";
+    if (h >= 50 && data.bp3passed === true) newLevel = "DP";
+    if (h >= 100 && data.bp3passed === true) newLevel = "PP";
 
-    // Mise à jour Firebase si le niveau est incohérent ou absent
+    // Mise à jour Firebase si niveau absent ou incohérent
     if (data.level !== newLevel) {
         await userRef.update({ level: newLevel });
         data.level = newLevel; // mise à jour locale
     }
 
-    // Construction des images
+    // Affichage des images de rating
     const box = document.getElementById("ratings");
     box.innerHTML = "";
 
     if (data.admin) box.innerHTML += `<img src="./admin.png">`;
-
     box.innerHTML += `<img src="./BP1.png">`;
     if (h >= 10) box.innerHTML += `<img src="./BP2.png">`;
     if (data.bp3passed) box.innerHTML += `<img src="./BP3.png">`;
     if (data.bp3passed && h >= 50) box.innerHTML += `<img src="./DP.png">`;
     if (data.bp3passed && h >= 100) box.innerHTML += `<img src="./PP.png">`;
 
-    // Affichage du niveau
+    // Mise à jour du texte du niveau
     document.getElementById("level").innerText = "Niveau : " + newLevel;
 }
-
-
 </script>
-
-
-
 
 </body>
 </html>
