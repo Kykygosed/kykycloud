@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kyky – Administration </title>
+<title>Kyky – Administration</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -34,9 +34,8 @@ button:hover { background: var(--primary-hover); }
 .exam-item:hover { background:#3b0d0d; }
 .question { margin-bottom:20px; }
 .answer { padding:6px 10px; border-radius:6px; margin:4px 0; }
-.answer.good { background:#064e3b; color:#bbf7d0; }
-.answer.bad { background:#7f1d1d; color:#fecaca; }
-.answer.user { border:1px solid #ef4444; }
+.answer.correct { background:#064e3b; color:#bbf7d0; }
+.answer.wrong { background:#7f1d1d; color:#fecaca; }
 </style>
 </head>
 <body>
@@ -52,7 +51,7 @@ button:hover { background: var(--primary-hover); }
 <main>
     <h1 id="welcomeMsg">Bienvenue!</h1>
 
-    <!-- Section Modération -->
+    <!-- Modération -->
     <div class="card">
         <h2>Modération</h2>
         <input type="text" id="userSearch" placeholder="Rechercher un utilisateur" oninput="searchUser()">
@@ -60,12 +59,10 @@ button:hover { background: var(--primary-hover); }
         <div id="userActions" style="margin-top:20px;"></div>
     </div>
 
-    <!-- Section Examens -->
+    <!-- Examens -->
     <div class="card">
         <h2>Examens en attente</h2>
-        <div id="examList">
-            <p class="muted">Chargement des examens…</p>
-        </div>
+        <div id="examList"><p class="muted">Chargement des examens…</p></div>
         <div id="examDetail" style="margin-top:25px;"></div>
     </div>
 </main>
@@ -81,45 +78,42 @@ const firebaseConfig = {
   databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "kyky-c3471"
 };
-
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 let currentUserData;
 
-// 🔒 Vérifie admin
+// Vérification admin
 auth.onAuthStateChanged(async user => {
     if (!user) return window.location.href="auth.html";
-
     const snap = await db.ref("users/"+user.uid).get();
-    const data = snap.val() || {};
-    if (!data.admin) { alert("Accès réservé aux administrateurs."); window.location.href="index.html"; return; }
+    const data = snap.val()||{};
+    if(!data.admin){ alert("Accès réservé aux administrateurs."); window.location.href="index.html"; return; }
     currentUserData = data;
-    document.getElementById("welcomeMsg").innerText = `Bienvenue, ${data.name || "Admin"}`;
+    document.getElementById("welcomeMsg").innerText=`Bienvenue, ${data.name||"Admin"}`;
     loadPendingExams();
 });
 
-// 🔎 Recherche utilisateur
-async function searchUser() {
-    const input = document.getElementById("userSearch").value.toLowerCase().trim();
-    const resultsDiv = document.getElementById("searchResults");
-    const actionsDiv = document.getElementById("userActions");
-    resultsDiv.innerHTML = ""; actionsDiv.innerHTML = "";
-    if (input.length<2) return;
-    const snap = await db.ref("users").limitToFirst(50).get();
-    snap.forEach(child => {
-        const u = child.val();
-        if (!u.name) return;
-        if (u.name.toLowerCase().includes(input)) {
-            const div = document.createElement("div");
-            div.innerText = u.name;
-            div.onclick = () => showUserActions(child.key,u);
+// Modération
+async function searchUser(){
+    const input=document.getElementById("userSearch").value.toLowerCase().trim();
+    const resultsDiv=document.getElementById("searchResults");
+    const actionsDiv=document.getElementById("userActions");
+    resultsDiv.innerHTML=""; actionsDiv.innerHTML="";
+    if(input.length<2) return;
+    const snap=await db.ref("users").limitToFirst(50).get();
+    snap.forEach(child=>{
+        const u=child.val();
+        if(!u.name) return;
+        if(u.name.toLowerCase().includes(input)){
+            const div=document.createElement("div");
+            div.innerText=u.name;
+            div.onclick=()=>showUserActions(child.key,u);
             resultsDiv.appendChild(div);
         }
     });
 }
 
-// Actions admin sur utilisateur
 function showUserActions(uid,data){
     const div=document.getElementById("userActions");
     div.innerHTML = `
@@ -138,69 +132,83 @@ function showUserActions(uid,data){
 function suspendUser(uid){
     const choice=prompt("Tape 'temp' pour ban temporaire, 'perm' pour ban permanent:");
     if(!choice) return;
-    if(choice==="perm"){
-        db.ref("users/"+uid).update({accountstatus:"suspended"});
-        alert("Utilisateur banni définitivement !");
-    } else if(choice==="temp"){
-        const dateStr=prompt("Entrez la date de deban (YYYY-MM-DD):");
-        if(!dateStr) return;
-        db.ref("users/"+uid).update({accountstatus:"suspended",unban:dateStr});
+    if(choice==="perm"){ db.ref("users/"+uid).update({accountstatus:"suspended"}); alert("Utilisateur banni définitivement !"); }
+    else if(choice==="temp"){ 
+        const dateStr=prompt("Date de deban (YYYY-MM-DD):"); 
+        if(!dateStr) return; 
+        db.ref("users/"+uid).update({accountstatus:"suspended",unban:dateStr}); 
         alert(`Utilisateur banni jusqu'au ${dateStr}`);
     }
 }
 
-function debanUser(uid){
-    db.ref("users/"+uid).update({accountstatus:"active"});
-    alert("Utilisateur débanni !");
-}
+function debanUser(uid){ db.ref("users/"+uid).update({accountstatus:"active"}); alert("Utilisateur débanni !"); }
+function deleteUser(uid){ if(confirm("Supprimer cet utilisateur ?")){ db.ref("users/"+uid).remove(); alert("Utilisateur supprimé !"); document.getElementById("userActions").innerHTML=""; document.getElementById("searchResults").innerHTML=""; } }
 
-function deleteUser(uid){
-    if(confirm("Voulez-vous vraiment supprimer cet utilisateur ?")){
-        db.ref("users/"+uid).remove();
-        alert("Utilisateur supprimé !");
-        document.getElementById("userActions").innerHTML="";
-        document.getElementById("searchResults").innerHTML="";
-    }
-}
-
-// 🔎 Examens
-async function loadPendingExams() {
-    const listDiv = document.getElementById("examList");
-    listDiv.innerHTML = "";
-
-    const snap = await db.ref("exams").get(); // on récupère tout
-    if (!snap.exists()) {
-        listDiv.innerHTML = "<p class='muted'>Aucun examen en attente.</p>";
-        return;
-    }
-
-    let hasPending = false;
-    snap.forEach(child => {
-        const exam = child.val();
-        if (exam.examstate === "pending") { // filtre côté JS
-            hasPending = true;
-            const div = document.createElement("div");
-            div.className = "exam-item";
-            div.innerText = `${exam.exam || "BP3"} — ${exam.userName || exam.userId}`;
-            div.onclick = () => showExamDetail(child.key, exam);
+// Examens
+async function loadPendingExams(){
+    const listDiv=document.getElementById("examList"); listDiv.innerHTML="";
+    const snap=await db.ref("exams").get();
+    if(!snap.exists()){ listDiv.innerHTML="<p class='muted'>Aucun examen en attente.</p>"; return; }
+    let hasPending=false;
+    snap.forEach(child=>{
+        const e=child.val();
+        if(e.examstate==="pending"){
+            hasPending=true;
+            const div=document.createElement("div");
+            div.className="exam-item";
+            div.innerText=`${e.exam||"BP3"} — ${e.userName||e.userId}`;
+            div.onclick=()=>showExamDetail(child.key,e);
             listDiv.appendChild(div);
         }
     });
-
-    if (!hasPending) listDiv.innerHTML = "<p class='muted'>Aucun examen en attente.</p>";
+    if(!hasPending) listDiv.innerHTML="<p class='muted'>Aucun examen en attente.</p>";
 }
 
-function showExamDetail(examId, exam) {
-    const detail = document.getElementById("examDetail");
-    detail.innerHTML = `
-        <h3>Examen ${exam.exam || "BP3"}</h3>
-        <p>Utilisateur : ${exam.userName || exam.userId}</p>
-        <p>Statut : ${exam.examstate}</p>
-        <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
+async function showExamDetail(examId,exam){
+    const detail=document.getElementById("examDetail");
+    detail.innerHTML=`<h3>Examen ${exam.exam||"BP3"}</h3>`;
+    
+    // Nom utilisateur
+    let userName = exam.userName;
+    if(!userName && exam.userId){
+        const userSnap = await db.ref("users/"+exam.userId+"/name").get();
+        userName = userSnap.val() || exam.userId;
+    }
+    detail.innerHTML+=`<p>Utilisateur: ${userName}</p>`;
+    
+    // Questions et réponses
+    const userAnswers = exam.answers || {};
+    const questionIds = Object.keys(userAnswers);
+    
+    for(let i=0;i<questionIds.length;i++){
+        const qId = questionIds[i];
+        const qSnap = await db.ref(`questions/BP3/${qId}`).get();
+        if(!qSnap.exists()) continue;
+        const q = qSnap.val();
+        
+        const qDiv = document.createElement("div");
+        qDiv.className="question";
+        qDiv.innerHTML=`<strong>${i+1}. ${q.title}</strong>`;
+        
+        for(const aKey in q.answers){
+            const aDiv=document.createElement("div");
+            aDiv.className="answer";
+            if(aKey===q.correct) aDiv.classList.add("correct");
+            if(userAnswers[qId]===aKey && aKey!==q.correct) aDiv.classList.add("wrong");
+            let mark = "";
+            if(userAnswers[qId]===aKey) mark = " ← réponse de l'utilisateur";
+            aDiv.innerText=`${aKey.toUpperCase()} — ${q.answers[aKey]}${mark}`;
+            qDiv.appendChild(aDiv);
+        }
+        detail.appendChild(qDiv);
+    }
+
+    // Boutons
+    detail.innerHTML+=`
+        <button onclick="acceptExam('${examId}','${exam.userId}')">Accepter</button>
         <button onclick="rejectExam('${examId}')">Refuser</button>
     `;
 }
-
 
 async function acceptExam(examId,userId){
     if(!confirm("Valider cet examen ?")) return;
@@ -221,5 +229,6 @@ async function rejectExam(examId){
 
 document.getElementById("logoutBtn").onclick=()=>auth.signOut().then(()=>window.location.href="index.html");
 </script>
+
 </body>
 </html>
