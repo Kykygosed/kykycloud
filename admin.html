@@ -179,35 +179,17 @@ async function loadPendingExams(){
     });
 }
 
-function showExamDetail(examId,exam){
-    const detail=document.getElementById("examDetail");
-    detail.innerHTML=`<h3>Examen ${exam.exam||"BP3"}</h3>`;
-    const questions=exam.questions||{};
-    const userAnswers=exam.answers||{};
-    let index=1;
-    for(const qId in questions){
-        const q=questions[qId];
-        const qDiv=document.createElement("div");
-        qDiv.className="question";
-        qDiv.innerHTML=`<strong>${index}. ${q.title}</strong>`;
-        if(q.answers){
-            for(const aKey in q.answers){
-                const aDiv=document.createElement("div");
-                aDiv.className="answer";
-                if(aKey===q.correct) aDiv.classList.add("good");
-                if(userAnswers[qId]===aKey && aKey!==q.correct) aDiv.classList.add("bad");
-                aDiv.innerText=`${aKey.toUpperCase()} — ${q.answers[aKey]}`;
-                qDiv.appendChild(aDiv);
-            }
-        }
-        detail.appendChild(qDiv);
-        index++;
-    }
-    detail.innerHTML+=`
-        <button onclick="acceptExam('${examId}','${exam.userId}')">Accepter</button>
+function showExamDetail(examId, exam) {
+    const detail = document.getElementById("examDetail");
+    detail.innerHTML = `
+        <h3>Examen ${exam.exam || "BP3"}</h3>
+        <p>Utilisateur : ${exam.userName || exam.userId}</p>
+        <p>Statut : ${exam.examstate}</p>
+        <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
         <button onclick="rejectExam('${examId}')">Refuser</button>
     `;
 }
+
 
 async function acceptExam(examId,userId){
     if(!confirm("Valider cet examen ?")) return;
