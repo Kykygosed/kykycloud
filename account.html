@@ -257,74 +257,58 @@ const db = firebase.database();
 const urlParams = new URLSearchParams(window.location.search);
 const viewedUid = urlParams.get("uid"); // null si profil perso
 
-let currentUser;  // ✅ défini correctement
+let currentUser;
 let userData = {};
 
 auth.onAuthStateChanged(async user => {
-    if (!user) {
-        window.location.href = "auth.html";
-        return;
-    }
+    if (!user) return window.location.href = "auth.html";
 
-    currentUser = user;  // ✅ important pour saveProfile
+    currentUser = user;
     const myUid = user.uid;
-    const targetUid = viewedUid ? viewedUid : myUid;
+    const targetUid = viewedUid || myUid;
     const isOwnProfile = targetUid === myUid;
 
-    const userRef = db.ref("users/" + targetUid);
-    const snap = await userRef.get();
-
-    if (!snap.exists()) {
+    const userSnap = await db.ref("users/" + targetUid).get();
+    if (!userSnap.exists()) {
         document.getElementById("userName").innerText = "Utilisateur introuvable";
         return;
     }
 
-    const data = snap.val();
-    userData = data; // sauvegarde pour saveProfile
+    userData = userSnap.val();
 
-    fillProfile(data, isOwnProfile);
-    updateRatings(data);
+    fillProfile(userData, isOwnProfile);
+    await updateRatings(userData, targetUid);
 });
 
 function fillProfile(data, isOwnProfile) {
     // Nom affiché en haut
     document.getElementById("userName").innerText = data.name || "Profil incomplet";
 
-    // Statut en ligne
+    // Statut online
     const statusBox = document.getElementById("statusBox");
-
-// Si online est absent, null ou "N/A" → offline
-if (!data.online || data.online === "N/A") {
-    statusBox.innerText = "offline";
-    statusBox.className = "status-box status-red";
-} else {
-    statusBox.innerText = data.online;
-    statusBox.className = "status-box status-green";
-}
+    if (!data.online || data.online === "N/A") {
+        statusBox.innerText = "offline";
+        statusBox.className = "status-box status-red";
+    } else {
+        statusBox.innerText = data.online;
+        statusBox.className = "status-box status-green";
+    }
 
     // Infos pilote
-    document.getElementById("flightHours").innerText =
-        "Nombre d’heures de vol : " + (data.flighthours ?? "N/A");
-    document.getElementById("level").innerText =
-        "Niveau : " + (data.level || "BP1");
+    document.getElementById("flightHours").innerText = "Nombre d’heures de vol : " + (data.flighthours ?? "N/A");
+    document.getElementById("level").innerText = "Niveau : " + (data.level || "BP1");
 
     // Infos utilisateur
-    document.getElementById("admin").innerHTML =
-        data.admin
-            ? '<span class="admin-yes">Admin : oui</span>'
-            : "Admin : non";
+    document.getElementById("admin").innerHTML = data.admin ? '<span class="admin-yes">Admin : oui</span>' : "Admin : non";
+
     const accountStatusEl = document.getElementById("accountStatus");
+    if (data.accountstatus === "suspended") {
+        accountStatusEl.innerHTML = '<span class="account-status account-suspended">Compte suspendu</span>';
+    } else {
+        accountStatusEl.innerHTML = '<span class="account-status account-active">Compte actif</span>';
+    }
 
-if (data.accountstatus === "suspended") {
-    accountStatusEl.innerHTML =
-        '<span class="account-status account-suspended">Compte suspendu</span>';
-} else {
-    accountStatusEl.innerHTML =
-        '<span class="account-status account-active">Compte actif</span>';
-}
-
-
-    // ✅ Remplissage des inputs
+    // Remplissage inputs
     document.getElementById("name").value = data.name || "";
     document.getElementById("email").value = data.email || "";
     document.getElementById("country").value = data.country || "";
@@ -332,41 +316,35 @@ if (data.accountstatus === "suspended") {
     document.getElementById("division").value = data.division || "";
     document.getElementById("birthdate").value = data.birthdate || "";
 
-    // 🔒 Lecture seule si ce n’est pas ton profil
+    // Lecture seule si ce n'est pas ton profil
     if (!isOwnProfile) {
-        const inputs = document.querySelectorAll("input");
-        inputs.forEach(i => i.setAttribute("readonly", true));
+        document.querySelectorAll("input").forEach(i => i.setAttribute("readonly", true));
         const btn = document.querySelector("button");
         if (btn) btn.style.display = "none";
     }
 }
 
 async function saveProfile() {
-    if (!currentUser) return; // sécurité
+    if (!currentUser) return;
 
     const updates = {};
     ["name","email","country","city","division","birthdate"].forEach(f => {
         const val = document.getElementById(f).value.trim();
-        if (val !== (userData[f] || "")) {
-            updates[f] = val;
-        }
+        if (val !== (userData[f] || "")) updates[f] = val;
     });
 
-    // Empêche la modification d’un profil d’un autre utilisateur
-    if (viewedUid && viewedUid !== currentUser.uid) return;
+    if (viewedUid && viewedUid !== currentUser.uid) return; // sécurité
 
     if (Object.keys(updates).length) {
-        await db.ref("users/" + currentUser.uid).update(updates);
+        await db.ref("users/" + (viewedUid || currentUser.uid)).update(updates);
         location.reload();
     }
 }
 
-
-async function updateRatings(data) {
+async function updateRatings(data, uid) {
     const box = document.getElementById("ratings");
     box.innerHTML = "";
 
-    const uid = viewedUid || currentUser.uid;
     const h = Number(data.flighthours) || 0;
 
     // Récupération des examens passés par l'utilisateur
@@ -376,14 +354,12 @@ async function updateRatings(data) {
     if (examsSnap.exists()) {
         examsSnap.forEach(e => {
             const exam = e.val();
-            if ((exam.exam === "BP3") && (exam.examstate === "success")) {
-                bp3Passed = true;
-            }
+            if ((exam.exam === "BP3") && (exam.examstate === "success")) bp3Passed = true;
         });
     }
 
     // Construction des images de ratings
-    if (data.admin === true) box.innerHTML += `<img src="./admin.png">`;
+    if (data.admin) box.innerHTML += `<img src="./admin.png">`;
 
     box.innerHTML += `<img src="./BP1.png">`;
     if (h >= 10) box.innerHTML += `<img src="./BP2.png">`;
@@ -391,7 +367,7 @@ async function updateRatings(data) {
     if (bp3Passed && h >= 50) box.innerHTML += `<img src="./DP.png">`;
     if (bp3Passed && h >= 100) box.innerHTML += `<img src="./PP.png">`;
 
-    // Détermination du niveau correct
+    // Calcul du niveau correct
     let correctLevel = "BP1";
     if (h >= 10) correctLevel = "BP2";
     if (bp3Passed) correctLevel = "BP3";
@@ -405,6 +381,7 @@ async function updateRatings(data) {
     }
 }
 </script>
+
 
 
 
