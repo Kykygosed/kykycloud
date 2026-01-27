@@ -109,6 +109,9 @@ auth.onAuthStateChanged(async user => {
     }
 });
 
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
+const REPASS_DELAY_DAYS = 15;
+
 async function startExam() {
     const userSnap = await db.ref("users/" + currentUser.uid).get();
     const userData = userSnap.val();
@@ -118,8 +121,40 @@ async function startExam() {
         return;
     }
 
+    if (userData.bp3passed === true) {
+        alert("Vous avez déjà passé et réussi cet examen.");
+        return;
+    }
+
+    // Vérifie les examens existants
+    const examsSnap = await db.ref("exams").orderByChild("userId").equalTo(currentUser.uid).get();
+    let canPass = true;
+
+    if (examsSnap.exists()) {
+        examsSnap.forEach(e => {
+            const exam = e.val();
+            if (exam.exam === "BP3") {
+                const expiry = exam.expiryDate ? new Date(exam.expiryDate).getTime() : 0;
+                const now = Date.now();
+
+                if (now < expiry) {
+                    canPass = false;
+                    alert(`Vous avez déjà passé cet examen récemment. Prochain repassage possible le ${new Date(expiry).toLocaleDateString()}.`);
+                } else {
+                    // Supprime l'ancien examen expiré
+                    db.ref("exams/" + e.key).remove();
+                }
+            }
+        });
+    }
+
+    if (!canPass) return;
+
     loadExam();
 }
+
+
+
 
 async function loadExam() {
     const snap = await db.ref("questions/BP3").get();
@@ -175,13 +210,18 @@ async function submitExam() {
 
     const examId = db.ref("exams").push().key;
 
+    // Date d'expiration 15 jours après l'envoi
+    const expiryDate = new Date(Date.now() + REPASS_DELAY_DAYS * MS_IN_DAY).toISOString();
+
     await db.ref("exams/" + examId).set({
         userId: currentUser.uid,
         exam: "BP3",
         examstate: "pending",
-        answers: answers
+        answers: answers,
+        expiryDate: expiryDate
     });
 
+    alert("Examen enregistré. Vous pourrez le repasser après " + REPASS_DELAY_DAYS + " jours si nécessaire.");
     location.reload();
 }
 
