@@ -5,53 +5,43 @@
 <title>Kyky Radar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
-body, html { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
-#map { height: 100%; width: 100%; }
-#sidebar {
+body, html { margin:0; padding:0; height:100%; font-family:Inter,sans-serif; }
+#map { position:absolute; top:0; bottom:0; left:0; right:0; }
+.sidebar {
     position: absolute;
     top: 10px;
     left: 10px;
-    width: 250px;
-    background: rgba(20,20,20,0.9);
-    color: white;
+    background: rgba(20,20,20,0.85);
     padding: 15px;
     border-radius: 12px;
+    color: white;
     z-index: 1000;
+    width: 200px;
 }
-#sidebar h2 { margin-top:0; font-size: 1.2rem; }
-#sidebar button { width:100%; margin-top:10px; padding:8px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:600; cursor:pointer; }
-#sidebar button:hover { background:#1d4ed8; }
-.input-popup { margin-top:5px; margin-bottom:5px; width:100%; padding:6px; border-radius:6px; border:none; }
+.sidebar h2 { margin-bottom: 10px; font-size:1.2rem; }
+.sidebar button { margin-top: 8px; width:100%; padding:8px; border:none; border-radius:8px; cursor:pointer; font-weight:600; }
+.sidebar button.admin { background:#f59e0b; color:white; display:none; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-
-<div id="sidebar">
+<div class="sidebar">
     <h2>Kyky Radar</h2>
     <div>Online pilots: <span id="onlineCount">0</span></div>
-    <button id="adminBtn">Admin</button>
-    <div id="adminControls" style="display:none; margin-top:10px;">
-        <button id="newAirportBtn">Nouvel aéroport</button>
-        <div id="airportConfig"></div>
-    </div>
+    <button class="admin" id="newAirportBtn">Nouvel aéroport</button>
 </div>
 
-<!-- Firebase -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script>
-// ----------- Firebase init -----------
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
   authDomain: "kyky-c3471.firebaseapp.com",
@@ -59,115 +49,104 @@ const firebaseConfig = {
   projectId: "kyky-c3471"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 const auth = firebase.auth();
+const db = firebase.database();
 
-// ----------- Leaflet map init -----------
+// Leaflet map
 const map = L.map('map').setView([20,0], 2);
 
-// Carte noir/gris
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 19
+// Tiles noir/gris
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
 }).addTo(map);
 
+const airportMarkers = L.layerGroup().addTo(map);
 
-let airportLayerGroup = L.layerGroup().addTo(map);
+let currentUser;
+auth.onAuthStateChanged(async user => {
+    if (!user) return window.location.href="auth.html";
+    currentUser = user;
 
-// ----------- Sidebar / Admin logic -----------
-const adminBtn = document.getElementById('adminBtn');
-const adminControls = document.getElementById('adminControls');
-const newAirportBtn = document.getElementById('newAirportBtn');
-const airportConfig = document.getElementById('airportConfig');
-let creatingAirport = false;
-let currentAirport = {icao:"", lat:0, lon:0, positions:[]};
+    // Vérifie si admin pour bouton
+    const snap = await db.ref("users/"+user.uid).get();
+    const data = snap.val() || {};
+    if (data.admin === true) document.getElementById("newAirportBtn").style.display="block";
 
-// Affiche cache les contrôles admin
-adminBtn.onclick = () => {
-    adminControls.style.display = adminControls.style.display==="none" ? "block":"none";
-}
-
-// Nouvelle création d'aéroport
-newAirportBtn.onclick = () => {
-    alert("Cliquez sur la carte pour placer l'aéroport.");
-    creatingAirport = true;
-}
-
-// Gestion du clic sur la carte
-map.on('click', (e) => {
-    if(!creatingAirport) return;
-    const {lat, lng} = e.latlng;
-    currentAirport.lat = lat;
-    currentAirport.lon = lng;
-
-    airportConfig.innerHTML = `
-        <label>Terminer la configuration de l'aéroport:</label>
-        <input type="text" placeholder="ICAO (4 lettres)" id="icaoInput" class="input-popup" maxlength="4">
-        <div id="positionsDiv"></div>
-        <button id="addPositionBtn">Nouvelle position</button>
-        <button id="confirmAirportBtn">Confirmer</button>
-    `;
-
-    // Ajouter position ATC
-    const positionsDiv = document.getElementById('positionsDiv');
-    document.getElementById('addPositionBtn').onclick = () => {
-        const posIndex = currentAirport.positions.length;
-        const div = document.createElement('div');
-        div.innerHTML = `
-            <input type="text" placeholder="Nom position" class="input-popup" id="posName${posIndex}">
-            <input type="text" placeholder="Fréquence" class="input-popup" id="posFreq${posIndex}">
-        `;
-        positionsDiv.appendChild(div);
-        currentAirport.positions.push({name:"", freq:""});
-    }
-
-    // Confirmer l'aéroport
-    document.getElementById('confirmAirportBtn').onclick = async () => {
-        const icao = document.getElementById('icaoInput').value.toUpperCase();
-        if(!icao || icao.length!==4) { alert("ICAO invalide"); return; }
-        currentAirport.icao = icao;
-
-        // Récup positions
-        currentAirport.positions.forEach((p,i) => {
-            const name = document.getElementById(`posName${i}`).value.trim();
-            const freq = document.getElementById(`posFreq${i}`).value.trim();
-            currentAirport.positions[i] = {name, freq};
-        });
-
-        // Enregistrement Firebase
-        const airportId = db.ref("airports").push().key;
-        await db.ref("airports/"+airportId).set(currentAirport);
-
-        alert("Aéroport créé !");
-        currentAirport = {icao:"", lat:0, lon:0, positions:[]};
-        airportConfig.innerHTML = "";
-        creatingAirport = false;
-        loadAirports();
-    }
+    // Online pilots count
+    db.ref("onlinepilots").on('value', s=>document.getElementById("onlineCount").innerText = s.val()||0);
 });
 
-// ----------- Charger aéroports depuis Firebase -----------
-async function loadAirports() {
-    airportLayerGroup.clearLayers();
-    const snap = await db.ref("airports").get();
-    if(!snap.exists()) return;
-    snap.forEach(child => {
-        const data = child.val();
-        L.circle([data.lat, data.lon], {radius:10000, color:'blue', fillColor:'blue', fillOpacity:0.5})
-            .bindPopup(`<b>${data.icao}</b>`).addTo(airportLayerGroup);
+// Gestion airports et positions
+function updateAirports() {
+    airportMarkers.clearLayers();
+
+    db.ref("airports").get().then(snap => {
+        snap.forEach(aSnap => {
+            const airport = aSnap.val();
+            const lat = airport.lat;
+            const lng = airport.lng;
+
+            // Rond bleu aéroport
+            L.circle([lat,lng], { radius:200, color:'blue', fillColor:'blue', fillOpacity:0.3 }).addTo(airportMarkers);
+
+            if (!airport.positions) return;
+            Object.values(airport.positions).forEach(pos=>{
+                if (!pos.connected) return;
+
+                let shape;
+                const tooltipText = `${pos.name} : ${pos.frequency || ''}`;
+
+                if(pos.name.endsWith("_DEL")){
+                    shape = L.marker([lat,lng],{
+                        icon: L.divIcon({
+                            className:'cross-delivery',
+                            html:`<div style="width:20px;height:20px;border-left:2px solid red;border-top:2px solid red;transform:rotate(45deg);opacity:0.5"></div>`,
+                            iconSize:[20,20]
+                        })
+                    });
+                } else if(pos.name.endsWith("_GND")){
+                    shape = L.circle([lat,lng],{ radius:250, color:'yellow', fillColor:'yellow', fillOpacity:0.4 });
+                } else if(pos.name.endsWith("_TWR")){
+                    shape = L.rectangle([[lat-0.0005,lng-0.0005],[lat+0.0005,lng+0.0005]], { color:'green', fillOpacity:0.4 });
+                } else if(pos.name.endsWith("_DEP")){
+                    shape = L.rectangle([[lat-0.001,lng-0.001],[lat+0.001,lng+0.001]], { color:'white', fillOpacity:0.4 });
+                } else if(pos.name.endsWith("_APP")){
+                    shape = L.rectangle([[lat-0.002,lng-0.002],[lat+0.002,lng+0.002]], { color:'deepskyblue', fillOpacity:0.3 });
+                }
+
+                if(shape){
+                    shape.bindTooltip(tooltipText, { permanent:false, direction:'top' });
+                    shape.addTo(airportMarkers);
+                }
+            });
+        });
     });
 }
-loadAirports();
 
-// ----------- Pilotes en ligne -----------
-const onlineCountEl = document.getElementById('onlineCount');
-async function updateOnlinePilots() {
-    const snap = await db.ref("onlinepilots").get();
-    const count = snap.val() || 0;
-    onlineCountEl.innerText = count;
-}
-setInterval(updateOnlinePilots,5000);
-updateOnlinePilots();
+updateAirports();
+db.ref("airports").on('value', updateAirports);
+
+// Admin: ajouter un nouvel aéroport
+let creatingAirport = false;
+document.getElementById("newAirportBtn").onclick = ()=>{
+    alert("Cliquez sur la carte pour placer le nouvel aéroport.");
+    creatingAirport = true;
+};
+
+map.on('click', async e=>{
+    if(!creatingAirport) return;
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    const icao = prompt("Nom de l'aéroport (ICAO 4 lettres):").toUpperCase();
+    if(!icao) return;
+
+    const airportRef = db.ref("airports").push();
+    await airportRef.set({ icao:icao, lat:lat, lng:lng, positions:{} });
+
+    alert("Aéroport créé. Vous pouvez maintenant ajouter des positions ATC.");
+    creatingAirport = false;
+});
 </script>
 
 </body>
