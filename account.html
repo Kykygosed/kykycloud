@@ -291,11 +291,16 @@ function fillProfile(data, isOwnProfile) {
     document.getElementById("userName").innerText = data.name || "Profil incomplet";
 
     // Statut en ligne
-    const online = data.online === "N/A" ? "offline" : data.online;
     const statusBox = document.getElementById("statusBox");
-    statusBox.innerText = online;
-    statusBox.className =
-        "status-box " + (online === "offline" ? "status-red" : "status-green");
+
+// Si online est absent, null ou "N/A" → offline
+if (!data.online || data.online === "N/A") {
+    statusBox.innerText = "offline";
+    statusBox.className = "status-box status-red";
+} else {
+    statusBox.innerText = data.online;
+    statusBox.className = "status-box status-green";
+}
 
     // Infos pilote
     document.getElementById("flightHours").innerText =
