@@ -336,43 +336,49 @@ function deleteUser(uid) {
     });
 }
 
-function showExam(examId, exam) {
-    const box = document.getElementById("examDetail");
-    box.innerHTML = `<h2>${exam.examName}</h2>`;
+function showExamDetail(examId, exam) {
+    const detail = document.getElementById("examDetail");
+    detail.innerHTML = `<h3>Examen ${exam.examName}</h3>`;
 
     const questions = exam.questions || {};
     const userAnswers = exam.answers || {};
 
-    Object.entries(questions).forEach(([qId, qData], index) => {
+    let index = 1;
+
+    for (const questionId in questions) {
+        const q = questions[questionId];
+
         const qDiv = document.createElement("div");
         qDiv.className = "question";
-        qDiv.innerHTML = `<strong>${index + 1}. ${qData.title}</strong>`;
+        qDiv.innerHTML = `<strong>${index}. ${q.title}</strong>`;
 
-        Object.entries(qData.answers).forEach(([key, text]) => {
+        for (const answerKey in q.answers) {
+            const answerText = q.answers[answerKey];
             const aDiv = document.createElement("div");
             aDiv.className = "answer";
 
-            // bonne réponse
-            if (key === qData.correct) {
+            // Bonne réponse
+            if (answerKey === q.correct) {
                 aDiv.classList.add("good");
             }
 
-            // mauvaise réponse utilisateur
+            // Réponse utilisateur incorrecte
             if (
-                userAnswers[qId] === key &&
-                key !== qData.correct
+                userAnswers[questionId] === answerKey &&
+                answerKey !== q.correct
             ) {
                 aDiv.classList.add("bad");
             }
 
-            aDiv.innerText = `${key.toUpperCase()} — ${text}`;
+            aDiv.innerText = `${answerKey.toUpperCase()} — ${answerText}`;
             qDiv.appendChild(aDiv);
-        });
+        }
 
-        box.appendChild(qDiv);
-    });
+        detail.appendChild(qDiv);
+        index++;
+    }
 
-    box.innerHTML += `
+    detail.innerHTML += `
         <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
         <button onclick="rejectExam('${examId}')">Refuser</button>
     `;
