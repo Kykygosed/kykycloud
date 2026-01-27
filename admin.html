@@ -114,6 +114,47 @@ button:hover {
 #searchResults div:hover {
     background: #3b0d0d;
 }
+    .muted {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.exam-item {
+    padding: 10px;
+    background: #2b0d0d;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+}
+
+.exam-item:hover {
+    background: #3b0d0d;
+}
+
+.question {
+    margin-bottom: 20px;
+}
+
+.answer {
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin: 4px 0;
+}
+
+.answer.good {
+    background: #064e3b;
+    color: #bbf7d0;
+}
+
+.answer.bad {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.answer.user {
+    border: 1px solid #ef4444;
+}
+
 </style>
 </head>
 
@@ -145,6 +186,16 @@ button:hover {
 
         <div id="userActions" style="margin-top:20px;"></div>
     </div>
+    <!-- Section Examens -->
+<div class="card">
+    <h2>Examens en attente</h2>
+    <div id="examList">
+        <p class="muted">Chargement des examens…</p>
+    </div>
+
+    <div id="examDetail" style="margin-top:25px;"></div>
+</div>
+
 </main>
 
 <!-- Firebase -->
@@ -182,9 +233,16 @@ auth.onAuthStateChanged(async user => {
         return;
     }
 
+    // ✅ utilisateur admin confirmé
     currentUserData = data;
-    document.getElementById("welcomeMsg").innerText = `Bienvenue, ${data.name || "Admin"}`;
+
+    document.getElementById("welcomeMsg").innerText =
+        `Bienvenue, ${data.name || "Admin"}`;
+
+    // ✅ charge les examens en attente
+    loadPendingExams();
 });
+
 
 // 🔎 Recherche utilisateur
 async function searchUser() {
@@ -256,6 +314,79 @@ function deleteUser(uid) {
         document.getElementById("userActions").innerHTML = "";
         document.getElementById("searchResults").innerHTML = "";
     }
+}
+    async function loadPendingExams() {
+    const listDiv = document.getElementById("examList");
+    listDiv.innerHTML = "";
+
+    const snap = await db.ref("exams").orderByChild("examstate").equalTo("pending").get();
+
+    if (!snap.exists()) {
+        listDiv.innerHTML = "<p class='muted'>Aucun examen en attente.</p>";
+        return;
+    }
+
+    snap.forEach(child => {
+        const exam = child.val();
+        const div = document.createElement("div");
+        div.className = "exam-item";
+        div.innerText = `${exam.examName} — ${exam.userName}`;
+        div.onclick = () => showExamDetail(child.key, exam);
+        listDiv.appendChild(div);
+    });
+}
+
+function showExamDetail(examId, exam) {
+    const detail = document.getElementById("examDetail");
+    detail.innerHTML = `<h3>Examen ${exam.examName}</h3>`;
+
+    exam.questions.forEach((q, index) => {
+        const qDiv = document.createElement("div");
+        qDiv.className = "question";
+        qDiv.innerHTML = `<strong>${index + 1}. ${q.title}</strong>`;
+
+        q.answers.forEach(ans => {
+            const aDiv = document.createElement("div");
+            aDiv.className = "answer";
+
+            if (ans === q.correctAnswer) {
+                aDiv.classList.add("good");
+            }
+
+            if (ans === q.userAnswer && ans !== q.correctAnswer) {
+                aDiv.classList.add("bad", "user");
+            }
+
+            aDiv.innerText = ans;
+            qDiv.appendChild(aDiv);
+        });
+
+        detail.appendChild(qDiv);
+    });
+
+    detail.innerHTML += `
+        <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
+        <button onclick="rejectExam('${examId}')">Refuser</button>
+    `;
+}
+async function acceptExam(examId, userId) {
+    if (!confirm("Valider cet examen ?")) return;
+
+    await db.ref("exams/" + examId).update({ examstate: "success" });
+    await db.ref("users/" + userId).update({ level: "BP3" });
+
+    alert("Examen validé, BP3 attribué.");
+    document.getElementById("examDetail").innerHTML = "";
+    loadPendingExams();
+}
+async function rejectExam(examId) {
+    if (!confirm("Refuser cet examen ?")) return;
+
+    await db.ref("exams/" + examId).update({ examstate: "failed" });
+
+    alert("Examen refusé.");
+    document.getElementById("examDetail").innerHTML = "";
+    loadPendingExams();
 }
 
 // Déconnexion
