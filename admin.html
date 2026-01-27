@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kyky – Administration</title>
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-
 <style>
 :root {
     --bg: #1a0b0b;
@@ -17,147 +15,30 @@
     --primary-hover: #dc2626;
     --border: rgba(255,255,255,0.1);
 }
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Inter, system-ui, sans-serif;
-}
-
-body {
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    flex-direction: column;
-}
-
-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 40px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(20,0,0,0.85);
-}
-
-.logo {
-    font-size: 1.4rem;
-    font-weight: 700;
-}
-
-nav a {
-    color: var(--text);
-    text-decoration: none;
-    font-weight: 600;
-    margin-left: 16px;
-}
-
-main {
-    flex: 1;
-    padding: 40px;
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-h1 {
-    font-size: 2rem;
-    margin-bottom: 20px;
-}
-
-h2 {
-    font-size: 1.2rem;
-    margin-bottom: 12px;
-}
-
-.card {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 25px;
-}
-
-input, select {
-    width: 100%;
-    padding: 10px;
-    margin: 6px 0 12px;
-    border-radius: 8px;
-    border: none;
-    background: #3b0d0d;
-    color: white;
-}
-
-button {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 8px;
-    background: var(--primary);
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    margin-right: 10px;
-}
-
-button:hover {
-    background: var(--primary-hover);
-}
-
-#searchResults div {
-    padding: 8px;
-    background: #2b0d0d;
-    margin-bottom: 4px;
-    cursor: pointer;
-}
-
-#searchResults div:hover {
-    background: #3b0d0d;
-}
-    .muted {
-    color: var(--muted);
-    font-size: 0.9rem;
-}
-
-.exam-item {
-    padding: 10px;
-    background: #2b0d0d;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    cursor: pointer;
-}
-
-.exam-item:hover {
-    background: #3b0d0d;
-}
-
-.question {
-    margin-bottom: 20px;
-}
-
-.answer {
-    padding: 6px 10px;
-    border-radius: 6px;
-    margin: 4px 0;
-}
-
-.answer.good {
-    background: #064e3b;
-    color: #bbf7d0;
-}
-
-.answer.bad {
-    background: #7f1d1d;
-    color: #fecaca;
-}
-
-.answer.user {
-    border: 1px solid #ef4444;
-}
-
+* { margin:0; padding:0; box-sizing:border-box; font-family: Inter, system-ui, sans-serif; }
+body { min-height:100vh; background: var(--bg); color: var(--text); display:flex; flex-direction:column; }
+header { display:flex; align-items:center; justify-content:space-between; padding:20px 40px; border-bottom:1px solid var(--border); background: rgba(20,0,0,0.85); }
+.logo { font-size:1.4rem; font-weight:700; }
+nav a { color: var(--text); text-decoration:none; font-weight:600; margin-left:16px; }
+main { flex:1; padding:40px; display:flex; flex-direction:column; gap:30px; }
+h1 { font-size:2rem; margin-bottom:20px; }
+h2 { font-size:1.2rem; margin-bottom:12px; }
+.card { background: var(--bg-alt); border:1px solid var(--border); border-radius:16px; padding:25px; }
+input, select { width:100%; padding:10px; margin:6px 0 12px; border-radius:8px; border:none; background:#3b0d0d; color:white; }
+button { padding:10px 16px; border:none; border-radius:8px; background: var(--primary); color:white; font-weight:600; cursor:pointer; margin-right:10px; }
+button:hover { background: var(--primary-hover); }
+#searchResults div, #examList div { padding:8px; background:#2b0d0d; margin-bottom:4px; cursor:pointer; }
+#searchResults div:hover, #examList div:hover { background:#3b0d0d; }
+.muted { color: var(--muted); font-size:0.9rem; }
+.exam-item { padding:10px; background:#2b0d0d; border-radius:8px; margin-bottom:6px; cursor:pointer; }
+.exam-item:hover { background:#3b0d0d; }
+.question { margin-bottom:20px; }
+.answer { padding:6px 10px; border-radius:6px; margin:4px 0; }
+.answer.good { background:#064e3b; color:#bbf7d0; }
+.answer.bad { background:#7f1d1d; color:#fecaca; }
+.answer.user { border:1px solid #ef4444; }
 </style>
 </head>
-
 <body>
 
 <header>
@@ -171,34 +52,24 @@ button:hover {
 <main>
     <h1 id="welcomeMsg">Bienvenue!</h1>
 
-    <!-- Section ATC -->
-    <div class="card">
-        <h2>ATC</h2>
-        <p>Téléchargez le client ATC :</p>
-        <a href="./ATC.zip" download><button>Télécharger ATC.zip</button></a>
-    </div>
-
     <!-- Section Modération -->
     <div class="card">
         <h2>Modération</h2>
         <input type="text" id="userSearch" placeholder="Rechercher un utilisateur" oninput="searchUser()">
         <div id="searchResults"></div>
-
         <div id="userActions" style="margin-top:20px;"></div>
     </div>
+
     <!-- Section Examens -->
-<div class="card">
-    <h2>Examens en attente</h2>
-    <div id="examList">
-        <p class="muted">Chargement des examens…</p>
+    <div class="card">
+        <h2>Examens en attente</h2>
+        <div id="examList">
+            <p class="muted">Chargement des examens…</p>
+        </div>
+        <div id="examDetail" style="margin-top:25px;"></div>
     </div>
-
-    <div id="examDetail" style="margin-top:25px;"></div>
-</div>
-
 </main>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -214,201 +85,148 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-
 let currentUserData;
 
-// 🔒 Vérifie si admin
+// 🔒 Vérifie admin
 auth.onAuthStateChanged(async user => {
-    if (!user) {
-        window.location.href = "auth.html";
-        return;
-    }
+    if (!user) return window.location.href="auth.html";
 
-    const snap = await db.ref("users/" + user.uid).get();
+    const snap = await db.ref("users/"+user.uid).get();
     const data = snap.val() || {};
-
-    if (!data.admin) {
-        alert("Accès réservé aux administrateurs.");
-        window.location.href = "index.html";
-        return;
-    }
-
-    // ✅ utilisateur admin confirmé
+    if (!data.admin) { alert("Accès réservé aux administrateurs."); window.location.href="index.html"; return; }
     currentUserData = data;
-
-    document.getElementById("welcomeMsg").innerText =
-        `Bienvenue, ${data.name || "Admin"}`;
-
-    // ✅ charge les examens en attente
+    document.getElementById("welcomeMsg").innerText = `Bienvenue, ${data.name || "Admin"}`;
     loadPendingExams();
 });
-
 
 // 🔎 Recherche utilisateur
 async function searchUser() {
     const input = document.getElementById("userSearch").value.toLowerCase().trim();
     const resultsDiv = document.getElementById("searchResults");
     const actionsDiv = document.getElementById("userActions");
-    resultsDiv.innerHTML = "";
-    actionsDiv.innerHTML = "";
-
-    if (input.length < 2) return;
-
+    resultsDiv.innerHTML = ""; actionsDiv.innerHTML = "";
+    if (input.length<2) return;
     const snap = await db.ref("users").limitToFirst(50).get();
-
     snap.forEach(child => {
-        const userData = child.val();
-        if (!userData.name) return;
-        if (userData.name.toLowerCase().includes(input)) {
+        const u = child.val();
+        if (!u.name) return;
+        if (u.name.toLowerCase().includes(input)) {
             const div = document.createElement("div");
-            div.innerText = userData.name;
-            div.onclick = () => showUserActions(child.key, userData);
+            div.innerText = u.name;
+            div.onclick = () => showUserActions(child.key,u);
             resultsDiv.appendChild(div);
         }
     });
 }
 
-// Affiche actions admin pour un utilisateur
-function showUserActions(uid, data) {
-    const div = document.getElementById("userActions");
+// Actions admin sur utilisateur
+function showUserActions(uid,data){
+    const div=document.getElementById("userActions");
     div.innerHTML = `
         <h3>${data.name}</h3>
-        <p>Email: ${data.email || "N/A"}</p>
-        <p>Pays: ${data.country || "N/A"}</p>
-        <p>Ville: ${data.city || "N/A"}</p>
-        <p>Division: ${data.division || "N/A"}</p>
-        <p>Status: ${data.accountstatus || "active"}</p>
+        <p>Email: ${data.email||"N/A"}</p>
+        <p>Pays: ${data.country||"N/A"}</p>
+        <p>Ville: ${data.city||"N/A"}</p>
+        <p>Division: ${data.division||"N/A"}</p>
+        <p>Status: ${data.accountstatus||"active"}</p>
         <button onclick="suspendUser('${uid}')">Suspendre</button>
         <button onclick="debanUser('${uid}')">Deban</button>
         <button onclick="deleteUser('${uid}')">Supprimer</button>
     `;
 }
 
-// Suspendre un utilisateur
-function suspendUser(uid) {
-    const choice = prompt("Tape 'temp' pour ban temporaire, 'perm' pour ban permanent:");
-    if (!choice) return;
-
-    if (choice === "perm") {
-        db.ref("users/" + uid).update({ accountstatus: "suspended" });
+function suspendUser(uid){
+    const choice=prompt("Tape 'temp' pour ban temporaire, 'perm' pour ban permanent:");
+    if(!choice) return;
+    if(choice==="perm"){
+        db.ref("users/"+uid).update({accountstatus:"suspended"});
         alert("Utilisateur banni définitivement !");
-    } else if (choice === "temp") {
-        const dateStr = prompt("Entrez la date de deban (YYYY-MM-DD):");
-        if (!dateStr) return;
-        db.ref("users/" + uid).update({ accountstatus: "suspended", unban: dateStr });
+    } else if(choice==="temp"){
+        const dateStr=prompt("Entrez la date de deban (YYYY-MM-DD):");
+        if(!dateStr) return;
+        db.ref("users/"+uid).update({accountstatus:"suspended",unban:dateStr});
         alert(`Utilisateur banni jusqu'au ${dateStr}`);
     }
 }
 
-// Deban utilisateur
-function debanUser(uid) {
-    db.ref("users/" + uid).update({ accountstatus: "active" });
+function debanUser(uid){
+    db.ref("users/"+uid).update({accountstatus:"active"});
     alert("Utilisateur débanni !");
 }
 
-// Supprimer utilisateur
-function deleteUser(uid) {
-    if (confirm("Voulez-vous vraiment supprimer cet utilisateur ?")) {
-        db.ref("users/" + uid).remove();
+function deleteUser(uid){
+    if(confirm("Voulez-vous vraiment supprimer cet utilisateur ?")){
+        db.ref("users/"+uid).remove();
         alert("Utilisateur supprimé !");
-        document.getElementById("userActions").innerHTML = "";
-        document.getElementById("searchResults").innerHTML = "";
+        document.getElementById("userActions").innerHTML="";
+        document.getElementById("searchResults").innerHTML="";
     }
 }
-    async function loadPendingExams() {
-    const listDiv = document.getElementById("examList");
-    listDiv.innerHTML = "";
 
-    const snap = await db.ref("exams").orderByChild("examstate").equalTo("pending").get();
-
-    if (!snap.exists()) {
-        listDiv.innerHTML = "<p class='muted'>Aucun examen en attente.</p>";
-        return;
-    }
-
-    snap.forEach(child => {
-        const exam = child.val();
-        const div = document.createElement("div");
-        div.className = "exam-item";
-        div.innerText = `${exam.examName} — ${exam.userName}`;
-        div.onclick = () => showExamDetail(child.key, exam);
+// 🔎 Examens
+async function loadPendingExams(){
+    const listDiv=document.getElementById("examList");
+    listDiv.innerHTML="";
+    const snap=await db.ref("exams").orderByChild("examstate").equalTo("pending").get();
+    if(!snap.exists()){ listDiv.innerHTML="<p class='muted'>Aucun examen en attente.</p>"; return; }
+    snap.forEach(child=>{
+        const e=child.val();
+        const div=document.createElement("div");
+        div.className="exam-item";
+        div.innerText=`${e.exam||"BP3"} — ${e.userName||e.userId}`;
+        div.onclick=()=>showExamDetail(child.key,e);
         listDiv.appendChild(div);
     });
 }
 
-function showExamDetail(examId, exam) {
-    const detail = document.getElementById("examDetail");
-    detail.innerHTML = `<h3>Examen ${exam.examName}</h3>`;
-
-    const questions = exam.questions || {};
-    const userAnswers = exam.answers || {};
-
-    let index = 1;
-
-    for (const questionId in questions) {
-        const q = questions[questionId];
-
-        const qDiv = document.createElement("div");
-        qDiv.className = "question";
-        qDiv.innerHTML = `<strong>${index}. ${q.title}</strong>`;
-
-        for (const answerKey in q.answers) {
-            const answerText = q.answers[answerKey];
-            const aDiv = document.createElement("div");
-            aDiv.className = "answer";
-
-            // Bonne réponse
-            if (answerKey === q.correct) {
-                aDiv.classList.add("good");
+function showExamDetail(examId,exam){
+    const detail=document.getElementById("examDetail");
+    detail.innerHTML=`<h3>Examen ${exam.exam||"BP3"}</h3>`;
+    const questions=exam.questions||{};
+    const userAnswers=exam.answers||{};
+    let index=1;
+    for(const qId in questions){
+        const q=questions[qId];
+        const qDiv=document.createElement("div");
+        qDiv.className="question";
+        qDiv.innerHTML=`<strong>${index}. ${q.title}</strong>`;
+        if(q.answers){
+            for(const aKey in q.answers){
+                const aDiv=document.createElement("div");
+                aDiv.className="answer";
+                if(aKey===q.correct) aDiv.classList.add("good");
+                if(userAnswers[qId]===aKey && aKey!==q.correct) aDiv.classList.add("bad");
+                aDiv.innerText=`${aKey.toUpperCase()} — ${q.answers[aKey]}`;
+                qDiv.appendChild(aDiv);
             }
-
-            // Réponse utilisateur incorrecte
-            if (
-                userAnswers[questionId] === answerKey &&
-                answerKey !== q.correct
-            ) {
-                aDiv.classList.add("bad");
-            }
-
-            aDiv.innerText = `${answerKey.toUpperCase()} — ${answerText}`;
-            qDiv.appendChild(aDiv);
         }
-
         detail.appendChild(qDiv);
         index++;
     }
-
-    detail.innerHTML += `
-        <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
+    detail.innerHTML+=`
+        <button onclick="acceptExam('${examId}','${exam.userId}')">Accepter</button>
         <button onclick="rejectExam('${examId}')">Refuser</button>
     `;
 }
 
-async function acceptExam(examId, userId) {
-    if (!confirm("Valider cet examen ?")) return;
-
-    await db.ref("exams/" + examId).update({ examstate: "success" });
-    await db.ref("users/" + userId).update({ level: "BP3" });
-
+async function acceptExam(examId,userId){
+    if(!confirm("Valider cet examen ?")) return;
+    await db.ref("exams/"+examId).update({examstate:"success"});
+    await db.ref("users/"+userId).update({level:"BP3"});
     alert("Examen validé, BP3 attribué.");
-    document.getElementById("examDetail").innerHTML = "";
+    document.getElementById("examDetail").innerHTML="";
     loadPendingExams();
 }
-async function rejectExam(examId) {
-    if (!confirm("Refuser cet examen ?")) return;
 
-    await db.ref("exams/" + examId).update({ examstate: "failed" });
-
+async function rejectExam(examId){
+    if(!confirm("Refuser cet examen ?")) return;
+    await db.ref("exams/"+examId).update({examstate:"failed"});
     alert("Examen refusé.");
-    document.getElementById("examDetail").innerHTML = "";
+    document.getElementById("examDetail").innerHTML="";
     loadPendingExams();
 }
 
-// Déconnexion
-document.getElementById("logoutBtn").onclick = () => {
-    auth.signOut().then(() => window.location.href="index.html");
-};
+document.getElementById("logoutBtn").onclick=()=>auth.signOut().then(()=>window.location.href="index.html");
 </script>
-
 </body>
 </html>
