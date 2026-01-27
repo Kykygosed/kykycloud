@@ -336,39 +336,48 @@ function deleteUser(uid) {
     });
 }
 
-function showExamDetail(examId, exam) {
-    const detail = document.getElementById("examDetail");
-    detail.innerHTML = `<h3>Examen ${exam.examName}</h3>`;
+function showExam(examId, exam) {
+    const box = document.getElementById("examDetail");
+    box.innerHTML = `<h2>${exam.examName}</h2>`;
 
-    exam.questions.forEach((q, index) => {
+    const questions = exam.questions || {};
+    const userAnswers = exam.answers || {};
+
+    Object.entries(questions).forEach(([qId, qData], index) => {
         const qDiv = document.createElement("div");
         qDiv.className = "question";
-        qDiv.innerHTML = `<strong>${index + 1}. ${q.title}</strong>`;
+        qDiv.innerHTML = `<strong>${index + 1}. ${qData.title}</strong>`;
 
-        q.answers.forEach(ans => {
+        Object.entries(qData.answers).forEach(([key, text]) => {
             const aDiv = document.createElement("div");
             aDiv.className = "answer";
 
-            if (ans === q.correctAnswer) {
+            // bonne réponse
+            if (key === qData.correct) {
                 aDiv.classList.add("good");
             }
 
-            if (ans === q.userAnswer && ans !== q.correctAnswer) {
-                aDiv.classList.add("bad", "user");
+            // mauvaise réponse utilisateur
+            if (
+                userAnswers[qId] === key &&
+                key !== qData.correct
+            ) {
+                aDiv.classList.add("bad");
             }
 
-            aDiv.innerText = ans;
+            aDiv.innerText = `${key.toUpperCase()} — ${text}`;
             qDiv.appendChild(aDiv);
         });
 
-        detail.appendChild(qDiv);
+        box.appendChild(qDiv);
     });
 
-    detail.innerHTML += `
+    box.innerHTML += `
         <button onclick="acceptExam('${examId}', '${exam.userId}')">Accepter</button>
         <button onclick="rejectExam('${examId}')">Refuser</button>
     `;
 }
+
 async function acceptExam(examId, userId) {
     if (!confirm("Valider cet examen ?")) return;
 
