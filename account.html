@@ -136,6 +136,24 @@ button:hover {
     gap: 8px;
     flex-wrap: wrap;
 }
+.account-status {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+
+.account-active {
+    background: #064e3b;
+    color: #bbf7d0;
+}
+
+.account-suspended {
+    background: #7f1d1d;
+    color: #fecaca;
+}
 
 .admin-yes { color: #ef4444; font-weight: 700; }
 </style>
@@ -290,10 +308,16 @@ function fillProfile(data, isOwnProfile) {
         data.admin
             ? '<span class="admin-yes">Admin : oui</span>'
             : "Admin : non";
-    document.getElementById("accountStatus").innerHTML =
-        data.accountstatus === "suspended"
-            ? '<span style="color:#ef4444;">Compte suspendu</span>'
-            : '<span style="color:#22c55e;">Compte actif</span>';
+    const accountStatusEl = document.getElementById("accountStatus");
+
+if (data.accountstatus === "suspended") {
+    accountStatusEl.innerHTML =
+        '<span class="account-status account-suspended">Compte suspendu</span>';
+} else {
+    accountStatusEl.innerHTML =
+        '<span class="account-status account-active">Compte actif</span>';
+}
+
 
     // ✅ Remplissage des inputs
     document.getElementById("name").value = data.name || "";
