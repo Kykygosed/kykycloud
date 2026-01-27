@@ -244,17 +244,30 @@ auth.onAuthStateChanged(user => {
             loginBtn.style.display = "none";
 
             // Crée un lien vers account.html avec le pseudo
-            const nameLink = document.createElement("a");
-            nameLink.href = "account.html";
-            nameLink.innerText = fullName;
-            nameLink.style.fontWeight = "600";
-            nameLink.style.padding = "8px 14px";
-            nameLink.style.borderRadius = "8px";
-            nameLink.style.background = "#1d4ed8";
-            nameLink.style.color = "white";
-            nameLink.className = "primary"; // effet hover cohérent
+            // Lien vers le profil
+const nameLink = document.createElement("a");
+nameLink.href = "account.html";
+nameLink.innerText = fullName;
+nameLink.style.fontWeight = "600";
+nameLink.style.padding = "8px 14px";
+nameLink.style.borderRadius = "8px";
+nameLink.style.background = "#1d4ed8";
+nameLink.style.color = "white";
+nameLink.className = "primary";
+nav.appendChild(nameLink);
 
-            nav.appendChild(nameLink);
+// Nouveau bouton Éxamens
+const examsLink = document.createElement("a");
+examsLink.href = "exams.html";
+examsLink.innerText = "Éxamens";
+examsLink.style.fontWeight = "600";
+examsLink.style.padding = "8px 14px";
+examsLink.style.borderRadius = "8px";
+examsLink.style.background = "#10b981"; // couleur verte
+examsLink.style.color = "white";
+examsLink.className = "primary";
+nav.appendChild(examsLink);
+
 
             // Si l'utilisateur est admin, ajouter bouton Administration
             if (data.admin === true) {
