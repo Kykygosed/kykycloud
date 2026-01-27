@@ -210,14 +210,22 @@ async function showExamDetail(examId,exam){
     `;
 }
 
-async function acceptExam(examId,userId){
-    if(!confirm("Valider cet examen ?")) return;
-    await db.ref("exams/"+examId).update({examstate:"success"});
-    await db.ref("users/"+userId).update({level:"BP3"});
-    alert("Examen validé, BP3 attribué.");
-    document.getElementById("examDetail").innerHTML="";
+async function acceptExam(examId, userId) {
+    if (!confirm("Valider cet examen ?")) return;
+
+    // Mettre l'examen comme réussi
+    await db.ref("exams/" + examId).update({ examstate: "success" });
+
+    // Indiquer que l'utilisateur a passé BP3
+    await db.ref("users/" + userId).update({ bp3passed: true });
+
+    alert("Examen validé, BP3 marqué comme passé pour l'utilisateur.");
+
+    // Rafraîchissement de l'affichage
+    document.getElementById("examDetail").innerHTML = "";
     loadPendingExams();
 }
+
 
 async function rejectExam(examId){
     if(!confirm("Refuser cet examen ?")) return;
