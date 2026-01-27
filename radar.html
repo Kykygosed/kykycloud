@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Kyky Radar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<style>
+body, html { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
+#map { height: 100%; width: 100%; }
+#sidebar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 250px;
+    background: rgba(20,20,20,0.9);
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    z-index: 1000;
+}
+#sidebar h2 { margin-top:0; font-size: 1.2rem; }
+#sidebar button { width:100%; margin-top:10px; padding:8px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:600; cursor:pointer; }
+#sidebar button:hover { background:#1d4ed8; }
+.input-popup { margin-top:5px; margin-bottom:5px; width:100%; padding:6px; border-radius:6px; border:none; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="sidebar">
+    <h2>Kyky Radar</h2>
+    <div>Online pilots: <span id="onlineCount">0</span></div>
+    <button id="adminBtn">Admin</button>
+    <div id="adminControls" style="display:none; margin-top:10px;">
+        <button id="newAirportBtn">Nouvel aéroport</button>
+        <div id="airportConfig"></div>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+// ----------- Firebase init -----------
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+// ----------- Leaflet map init -----------
+const map = L.map('map').setView([20,0], 2);
+
+// Carte noir/gris
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
+    maxZoom: 20
+}).addTo(map);
+
+let airportLayerGroup = L.layerGroup().addTo(map);
+
+// ----------- Sidebar / Admin logic -----------
+const adminBtn = document.getElementById('adminBtn');
+const adminControls = document.getElementById('adminControls');
+const newAirportBtn = document.getElementById('newAirportBtn');
+const airportConfig = document.getElementById('airportConfig');
+let creatingAirport = false;
+let currentAirport = {icao:"", lat:0, lon:0, positions:[]};
+
+// Affiche cache les contrôles admin
+adminBtn.onclick = () => {
+    adminControls.style.display = adminControls.style.display==="none" ? "block":"none";
+}
+
+// Nouvelle création d'aéroport
+newAirportBtn.onclick = () => {
+    alert("Cliquez sur la carte pour placer l'aéroport.");
+    creatingAirport = true;
+}
+
+// Gestion du clic sur la carte
+map.on('click', (e) => {
+    if(!creatingAirport) return;
+    const {lat, lng} = e.latlng;
+    currentAirport.lat = lat;
+    currentAirport.lon = lng;
+
+    airportConfig.innerHTML = `
+        <label>Terminer la configuration de l'aéroport:</label>
+        <input type="text" placeholder="ICAO (4 lettres)" id="icaoInput" class="input-popup" maxlength="4">
+        <div id="positionsDiv"></div>
+        <button id="addPositionBtn">Nouvelle position</button>
+        <button id="confirmAirportBtn">Confirmer</button>
+    `;
+
+    // Ajouter position ATC
+    const positionsDiv = document.getElementById('positionsDiv');
+    document.getElementById('addPositionBtn').onclick = () => {
+        const posIndex = currentAirport.positions.length;
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <input type="text" placeholder="Nom position" class="input-popup" id="posName${posIndex}">
+            <input type="text" placeholder="Fréquence" class="input-popup" id="posFreq${posIndex}">
+        `;
+        positionsDiv.appendChild(div);
+        currentAirport.positions.push({name:"", freq:""});
+    }
+
+    // Confirmer l'aéroport
+    document.getElementById('confirmAirportBtn').onclick = async () => {
+        const icao = document.getElementById('icaoInput').value.toUpperCase();
+        if(!icao || icao.length!==4) { alert("ICAO invalide"); return; }
+        currentAirport.icao = icao;
+
+        // Récup positions
+        currentAirport.positions.forEach((p,i) => {
+            const name = document.getElementById(`posName${i}`).value.trim();
+            const freq = document.getElementById(`posFreq${i}`).value.trim();
+            currentAirport.positions[i] = {name, freq};
+        });
+
+        // Enregistrement Firebase
+        const airportId = db.ref("airports").push().key;
+        await db.ref("airports/"+airportId).set(currentAirport);
+
+        alert("Aéroport créé !");
+        currentAirport = {icao:"", lat:0, lon:0, positions:[]};
+        airportConfig.innerHTML = "";
+        creatingAirport = false;
+        loadAirports();
+    }
+});
+
+// ----------- Charger aéroports depuis Firebase -----------
+async function loadAirports() {
+    airportLayerGroup.clearLayers();
+    const snap = await db.ref("airports").get();
+    if(!snap.exists()) return;
+    snap.forEach(child => {
+        const data = child.val();
+        L.circle([data.lat, data.lon], {radius:10000, color:'blue', fillColor:'blue', fillOpacity:0.5})
+            .bindPopup(`<b>${data.icao}</b>`).addTo(airportLayerGroup);
+    });
+}
+loadAirports();
+
+// ----------- Pilotes en ligne -----------
+const onlineCountEl = document.getElementById('onlineCount');
+async function updateOnlinePilots() {
+    const snap = await db.ref("onlinepilots").get();
+    const count = snap.val() || 0;
+    onlineCountEl.innerText = count;
+}
+setInterval(updateOnlinePilots,5000);
+updateOnlinePilots();
+</script>
+
+</body>
+</html>
