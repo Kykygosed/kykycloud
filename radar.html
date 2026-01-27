@@ -66,10 +66,11 @@ const auth = firebase.auth();
 const map = L.map('map').setView([20,0], 2);
 
 // Carte noir/gris
-L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
-    maxZoom: 20
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
 }).addTo(map);
+
 
 let airportLayerGroup = L.layerGroup().addTo(map);
 
