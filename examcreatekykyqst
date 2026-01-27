@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Kyky – Création question BP3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    background: #020617;
+    color: #e5e7eb;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+main {
+    max-width: 700px;
+    margin: auto;
+    padding: 40px;
+}
+
+.card {
+    background: #020617;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 30px;
+}
+
+label {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0 15px;
+    border-radius: 10px;
+    border: none;
+    background: #020617;
+    color: white;
+    outline: 1px solid rgba(255,255,255,0.15);
+}
+
+button {
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.answer {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+</style>
+</head>
+
+<body>
+
+<main>
+<div class="card">
+
+<h2>Créer une question – Examen BP3</h2>
+
+<label>Énoncé de la question</label>
+<textarea id="title" rows="3"></textarea>
+
+<h3>Réponses possibles</h3>
+
+<div class="answer">
+    <input type="radio" name="correct" value="a">
+    <input type="text" id="a" placeholder="Réponse A">
+</div>
+
+<div class="answer">
+    <input type="radio" name="correct" value="b">
+    <input type="text" id="b" placeholder="Réponse B">
+</div>
+
+<div class="answer">
+    <input type="radio" name="correct" value="c">
+    <input type="text" id="c" placeholder="Réponse C">
+</div>
+
+<div class="answer">
+    <input type="radio" name="correct" value="d">
+    <input type="text" id="d" placeholder="Réponse D (optionnel)">
+</div>
+
+<br>
+
+<button onclick="saveQuestion()">Enregistrer la question</button>
+
+</div>
+</main>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+auth.onAuthStateChanged(async user => {
+    if (!user) {
+        window.location.href = "auth.html";
+        return;
+    }
+
+    const snap = await db.ref("users/" + user.uid + "/admin").get();
+    if (snap.val() !== true) {
+        alert("Accès refusé.");
+        window.location.href = "account.html";
+    }
+});
+
+async function saveQuestion() {
+    const title = document.getElementById("title").value.trim();
+    const correctInput = document.querySelector("input[name='correct']:checked");
+
+    if (!title || !correctInput) {
+        alert("Veuillez remplir l’énoncé et choisir la bonne réponse.");
+        return;
+    }
+
+    const answers = {};
+    ["a","b","c","d"].forEach(id => {
+        const val = document.getElementById(id).value.trim();
+        if (val) answers[id] = val;
+    });
+
+    if (Object.keys(answers).length < 2) {
+        alert("Minimum deux réponses requises.");
+        return;
+    }
+
+    await db.ref("questions/BP3").push({
+        title: title,
+        answers: answers,
+        correct: correctInput.value
+    });
+
+    alert("Question enregistrée.");
+    location.reload();
+}
+</script>
+
+</body>
+</html>
