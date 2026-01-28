@@ -5,210 +5,202 @@
 <title>Kyky Radar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
 <style>
-body, html { margin:0; padding:0; height:100%; font-family:Inter,sans-serif; }
-#map { position:absolute; top:0; bottom:0; left:0; right:0; }
-.sidebar {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(20,20,20,0.85);
-    padding: 15px;
-    border-radius: 12px;
-    color: white;
-    z-index: 1000;
-    width: 200px;
+body, html { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
+#map { height:100%; width:100%; }
+
+#sidebar {
+    position:absolute;
+    top:10px;
+    left:10px;
+    width:260px;
+    background:rgba(20,20,20,0.9);
+    color:white;
+    padding:15px;
+    border-radius:12px;
+    z-index:1000;
 }
-.sidebar h2 { margin-bottom: 10px; font-size:1.2rem; }
-.sidebar button { margin-top: 8px; width:100%; padding:8px; border:none; border-radius:8px; cursor:pointer; font-weight:600; }
-.sidebar button.admin { background:#f59e0b; color:white; display:none; }
+
+#sidebar button {
+    width:100%;
+    margin-top:10px;
+    padding:8px;
+    border:none;
+    border-radius:8px;
+    background:#2563eb;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+}
+#sidebar button:hover { background:#1d4ed8; }
+
+.input-popup {
+    width:100%;
+    margin-top:5px;
+    padding:6px;
+    border-radius:6px;
+    border:none;
+}
 </style>
 </head>
+
 <body>
 
 <div id="map"></div>
-<div class="sidebar">
+
+<div id="sidebar">
     <h2>Kyky Radar</h2>
     <div>Online pilots: <span id="onlineCount">0</span></div>
-    <button class="admin" id="newAirportBtn">Nouvel aéroport</button>
+    <button id="adminBtn" style="display:none">Admin</button>
+
+    <div id="adminControls" style="display:none">
+        <button id="newAirportBtn">Nouvel aéroport</button>
+        <div id="airportConfig"></div>
+    </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
-// =====================
-// 🔥 Firebase init
-// =====================
-const firebaseConfig = {
+// ================= FIREBASE =================
+firebase.initializeApp({
   apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
   authDomain: "kyky-c3471.firebaseapp.com",
   databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "kyky-c3471"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
+});
 const db = firebase.database();
+const auth = firebase.auth();
 
-// =====================
-// 🗺️ Leaflet map
-// =====================
-const map = L.map("map", {
-    zoomControl: true
-}).setView([20, 0], 2);
+// ================= MAP =================
+const map = L.map("map").setView([20,0], 2);
 
-// Fond noir & gris
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap & CartoDB"
+L.tileLayer("https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png", {
+    maxZoom: 20
 }).addTo(map);
 
-// =====================
-// 🧠 Stockage local
-// =====================
-const airportLayers = {};
-const atcLayers = {};
+const airportLayer = L.layerGroup().addTo(map);
+const atcLayer = L.layerGroup().addTo(map);
 
-// =====================
-// ✈️ Dessin aéroport
-// =====================
-function drawAirport(id, data) {
-    if (typeof data.lat !== "number" || typeof data.long !== "number") return;
+// ================= ADMIN =================
+const adminBtn = document.getElementById("adminBtn");
+const adminControls = document.getElementById("adminControls");
+const newAirportBtn = document.getElementById("newAirportBtn");
+const airportConfig = document.getElementById("airportConfig");
 
-    const lat = data.lat;
-    const lng = data.long; // 🔴 conversion OBLIGATOIRE
+let creatingAirport = false;
+let tempAirport = { lat:0, long:0, positions:[] };
 
-    const circle = L.circle([lat, lng], {
-        radius: 8000,
-        color: "#3b82f6",
-        fillColor: "#3b82f6",
-        fillOpacity: 0.35
-    }).addTo(map);
+adminBtn.onclick = () => {
+    adminControls.style.display =
+        adminControls.style.display === "none" ? "block" : "none";
+};
 
-    airportLayers[id] = circle;
+newAirportBtn.onclick = () => {
+    alert("Cliquez sur la carte pour placer l'aéroport");
+    creatingAirport = true;
+};
 
-    if (data.positions) {
-        Object.values(data.positions).forEach(pos => {
-            if (pos.connected === true) {
-                drawATC(lat, lng, pos);
-            }
-        });
-    }
-}
+// ================= CLICK MAP =================
+map.on("click", e => {
+    if (!creatingAirport) return;
 
-// =====================
-// 🎮 Dessin ATC
-// =====================
+    tempAirport.lat = e.latlng.lat;
+    tempAirport.long = e.latlng.lng;
+
+    airportConfig.innerHTML = `
+        <input id="icaoInput" class="input-popup" placeholder="ICAO (4 lettres)">
+        <div id="positions"></div>
+        <button id="addPos">Nouvelle position</button>
+        <button id="confirm">Confirmer</button>
+    `;
+
+    document.getElementById("addPos").onclick = () => {
+        const i = tempAirport.positions.length;
+        document.getElementById("positions").innerHTML += `
+            <input id="pname${i}" class="input-popup" placeholder="Nom position">
+            <input id="pfreq${i}" class="input-popup" placeholder="Fréquence">
+        `;
+        tempAirport.positions.push({});
+    };
+
+    document.getElementById("confirm").onclick = async () => {
+        const icao = document.getElementById("icaoInput").value.toUpperCase();
+        if (icao.length !== 4) return alert("ICAO invalide");
+
+        tempAirport.icao = icao;
+        tempAirport.positions = tempAirport.positions.map((_,i)=>({
+            name: document.getElementById(`pname${i}`).value,
+            frequency: document.getElementById(`pfreq${i}`).value,
+            connected: false
+        }));
+
+        await db.ref("airports").push(tempAirport);
+        airportConfig.innerHTML = "";
+        creatingAirport = false;
+    };
+});
+
+// ================= DRAW =================
 function drawATC(lat, lng, pos) {
-    let layer;
+    let shape;
+    const tip = `${pos.name}<br>${pos.frequency}`;
 
-    const tooltip = `<b>${pos.name}</b><br>${pos.frequency}`;
-
-    // DELIVERY
     if (pos.name.endsWith("_DEL")) {
-        layer = L.marker([lat, lng], {
-            icon: L.divIcon({
-                className: "",
-                html: `<div style="
-                    width:20px;height:20px;
-                    border:3px solid red;
-                    transform: rotate(45deg);
-                    opacity:0.5;
-                "></div>`
-            })
+        shape = L.marker([lat,lng], {
+            icon: L.divIcon({html:`<div style="width:18px;height:18px;border:3px solid red;transform:rotate(45deg);opacity:.5"></div>`})
         });
     }
+    else if (pos.name.endsWith("_GND"))
+        shape = L.circle([lat,lng], {radius:12000,color:"yellow",fillOpacity:0});
+    else if (pos.name.endsWith("_TWR"))
+        shape = L.rectangle([[lat-0.08,lng-0.08],[lat+0.08,lng+0.08]],{color:"green"});
+    else if (pos.name.endsWith("_DEP"))
+        shape = L.rectangle([[lat-0.12,lng-0.12],[lat+0.12,lng+0.12]],{color:"white"});
+    else if (pos.name.endsWith("_APP"))
+        shape = L.rectangle([[lat-0.25,lng-0.25],[lat+0.25,lng+0.25]],{color:"#7dd3fc"});
 
-    // GROUND
-    else if (pos.name.endsWith("_GND")) {
-        layer = L.circle([lat, lng], {
-            radius: 12000,
-            color: "yellow",
-            fillOpacity: 0
-        });
-    }
-
-    // TOWER
-    else if (pos.name.endsWith("_TWR")) {
-        layer = L.rectangle([
-            [lat - 0.08, lng - 0.08],
-            [lat + 0.08, lng + 0.08]
-        ], {
-            color: "green",
-            fillOpacity: 0
-        });
-    }
-
-    // DEPARTURE
-    else if (pos.name.endsWith("_DEP")) {
-        layer = L.rectangle([
-            [lat - 0.12, lng - 0.12],
-            [lat + 0.12, lng + 0.12]
-        ], {
-            color: "white",
-            fillOpacity: 0
-        });
-    }
-
-    // APPROACH
-    else if (pos.name.endsWith("_APP")) {
-        layer = L.rectangle([
-            [lat - 0.25, lng - 0.25],
-            [lat + 0.25, lng + 0.25]
-        ], {
-            color: "#7dd3fc",
-            fillOpacity: 0
-        });
-    }
-
-    if (!layer) return;
-
-    layer.bindTooltip(tooltip);
-    layer.addTo(map);
-
-    atcLayers[pos.name] = layer;
+    if(shape) shape.bindTooltip(tip).addTo(atcLayer);
 }
 
-// =====================
-// 🔁 Temps réel aéroports
-// =====================
 db.ref("airports").on("value", snap => {
-    Object.values(airportLayers).forEach(l => map.removeLayer(l));
-    Object.values(atcLayers).forEach(l => map.removeLayer(l));
+    airportLayer.clearLayers();
+    atcLayer.clearLayers();
 
-    Object.keys(airportLayers).length = 0;
-    Object.keys(atcLayers).length = 0;
+    snap.forEach(a => {
+        const d = a.val();
+        L.circle([d.lat, d.long], {
+            radius:10000, color:"#3b82f6", fillOpacity:0.4
+        }).bindPopup(d.icao).addTo(airportLayer);
 
-    snap.forEach(child => {
-        drawAirport(child.key, child.val());
+        if (d.positions)
+            Object.values(d.positions).forEach(p=>{
+                if(p.connected) drawATC(d.lat, d.long, p);
+            });
     });
 });
 
-// =====================
-// 👑 Admin uniquement
-// =====================
-auth.onAuthStateChanged(user => {
-    if (!user) return;
-
-    db.ref("users/" + user.uid + "/admin").get().then(snap => {
-        if (snap.val() === true) {
-            document.getElementById("adminBtn").style.display = "block";
-        }
+// ================= AUTH =================
+auth.onAuthStateChanged(user=>{
+    if(!user) return;
+    db.ref("users/"+user.uid+"/admin").get().then(s=>{
+        if(s.val()===true) adminBtn.style.display="block";
     });
 });
 
-// =====================
-// 👥 Online pilots
-// =====================
-db.ref("onlinepilots").on("value", snap => {
-    document.getElementById("onlineCount").innerText = snap.val() || 0;
+// ================= ONLINE =================
+db.ref("onlinepilots").on("value", s=>{
+    document.getElementById("onlineCount").innerText = s.val() || 0;
 });
 </script>
-
 
 </body>
 </html>
