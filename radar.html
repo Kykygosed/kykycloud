@@ -83,9 +83,11 @@ const auth = firebase.auth();
 // ================= MAP =================
 const map = L.map("map").setView([20,0], 2);
 
-L.tileLayer("https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
 }).addTo(map);
+map);
 
 const airportLayer = L.layerGroup().addTo(map);
 const atcLayer = L.layerGroup().addTo(map);
