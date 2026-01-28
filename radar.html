@@ -41,113 +41,174 @@ body, html { margin:0; padding:0; height:100%; font-family:Inter,sans-serif; }
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// Firebase config
+// =====================
+// 🔥 Firebase init
+// =====================
 const firebaseConfig = {
   apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
   authDomain: "kyky-c3471.firebaseapp.com",
   databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "kyky-c3471"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// Leaflet map
-const map = L.map('map').setView([20,0], 2);
+// =====================
+// 🗺️ Leaflet map
+// =====================
+const map = L.map("map", {
+    zoomControl: true
+}).setView([20, 0], 2);
 
-// Tiles noir/gris
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+// Fond noir & gris
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap & CartoDB"
 }).addTo(map);
 
-const airportMarkers = L.layerGroup().addTo(map);
+// =====================
+// 🧠 Stockage local
+// =====================
+const airportLayers = {};
+const atcLayers = {};
 
-let currentUser;
-auth.onAuthStateChanged(async user => {
-    if (!user) return window.location.href="auth.html";
-    currentUser = user;
+// =====================
+// ✈️ Dessin aéroport
+// =====================
+function drawAirport(id, data) {
+    if (typeof data.lat !== "number" || typeof data.long !== "number") return;
 
-    // Vérifie si admin pour bouton
-    const snap = await db.ref("users/"+user.uid).get();
-    const data = snap.val() || {};
-    if (data.admin === true) document.getElementById("newAirportBtn").style.display="block";
+    const lat = data.lat;
+    const lng = data.long; // 🔴 conversion OBLIGATOIRE
 
-    // Online pilots count
-    db.ref("onlinepilots").on('value', s=>document.getElementById("onlineCount").innerText = s.val()||0);
-});
+    const circle = L.circle([lat, lng], {
+        radius: 8000,
+        color: "#3b82f6",
+        fillColor: "#3b82f6",
+        fillOpacity: 0.35
+    }).addTo(map);
 
-// Gestion airports et positions
-function updateAirports() {
-    airportMarkers.clearLayers();
+    airportLayers[id] = circle;
 
-    db.ref("airports").get().then(snap => {
-        snap.forEach(aSnap => {
-            const airport = aSnap.val();
-            const lat = airport.lat;
-            const lng = airport.lng;
-
-            // Rond bleu aéroport
-            L.circle([lat,lng], { radius:200, color:'blue', fillColor:'blue', fillOpacity:0.3 }).addTo(airportMarkers);
-
-            if (!airport.positions) return;
-            Object.values(airport.positions).forEach(pos=>{
-                if (!pos.connected) return;
-
-                let shape;
-                const tooltipText = `${pos.name} : ${pos.frequency || ''}`;
-
-                if(pos.name.endsWith("_DEL")){
-                    shape = L.marker([lat,lng],{
-                        icon: L.divIcon({
-                            className:'cross-delivery',
-                            html:`<div style="width:20px;height:20px;border-left:2px solid red;border-top:2px solid red;transform:rotate(45deg);opacity:0.5"></div>`,
-                            iconSize:[20,20]
-                        })
-                    });
-                } else if(pos.name.endsWith("_GND")){
-                    shape = L.circle([lat,lng],{ radius:250, color:'yellow', fillColor:'yellow', fillOpacity:0.4 });
-                } else if(pos.name.endsWith("_TWR")){
-                    shape = L.rectangle([[lat-0.0005,lng-0.0005],[lat+0.0005,lng+0.0005]], { color:'green', fillOpacity:0.4 });
-                } else if(pos.name.endsWith("_DEP")){
-                    shape = L.rectangle([[lat-0.001,lng-0.001],[lat+0.001,lng+0.001]], { color:'white', fillOpacity:0.4 });
-                } else if(pos.name.endsWith("_APP")){
-                    shape = L.rectangle([[lat-0.002,lng-0.002],[lat+0.002,lng+0.002]], { color:'deepskyblue', fillOpacity:0.3 });
-                }
-
-                if(shape){
-                    shape.bindTooltip(tooltipText, { permanent:false, direction:'top' });
-                    shape.addTo(airportMarkers);
-                }
-            });
+    if (data.positions) {
+        Object.values(data.positions).forEach(pos => {
+            if (pos.connected === true) {
+                drawATC(lat, lng, pos);
+            }
         });
-    });
+    }
 }
 
-updateAirports();
-db.ref("airports").on('value', updateAirports);
+// =====================
+// 🎮 Dessin ATC
+// =====================
+function drawATC(lat, lng, pos) {
+    let layer;
 
-// Admin: ajouter un nouvel aéroport
-let creatingAirport = false;
-document.getElementById("newAirportBtn").onclick = ()=>{
-    alert("Cliquez sur la carte pour placer le nouvel aéroport.");
-    creatingAirport = true;
-};
+    const tooltip = `<b>${pos.name}</b><br>${pos.frequency}`;
 
-map.on('click', async e=>{
-    if(!creatingAirport) return;
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
+    // DELIVERY
+    if (pos.name.endsWith("_DEL")) {
+        layer = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: "",
+                html: `<div style="
+                    width:20px;height:20px;
+                    border:3px solid red;
+                    transform: rotate(45deg);
+                    opacity:0.5;
+                "></div>`
+            })
+        });
+    }
 
-    const icao = prompt("Nom de l'aéroport (ICAO 4 lettres):").toUpperCase();
-    if(!icao) return;
+    // GROUND
+    else if (pos.name.endsWith("_GND")) {
+        layer = L.circle([lat, lng], {
+            radius: 12000,
+            color: "yellow",
+            fillOpacity: 0
+        });
+    }
 
-    const airportRef = db.ref("airports").push();
-    await airportRef.set({ icao:icao, lat:lat, lng:lng, positions:{} });
+    // TOWER
+    else if (pos.name.endsWith("_TWR")) {
+        layer = L.rectangle([
+            [lat - 0.08, lng - 0.08],
+            [lat + 0.08, lng + 0.08]
+        ], {
+            color: "green",
+            fillOpacity: 0
+        });
+    }
 
-    alert("Aéroport créé. Vous pouvez maintenant ajouter des positions ATC.");
-    creatingAirport = false;
+    // DEPARTURE
+    else if (pos.name.endsWith("_DEP")) {
+        layer = L.rectangle([
+            [lat - 0.12, lng - 0.12],
+            [lat + 0.12, lng + 0.12]
+        ], {
+            color: "white",
+            fillOpacity: 0
+        });
+    }
+
+    // APPROACH
+    else if (pos.name.endsWith("_APP")) {
+        layer = L.rectangle([
+            [lat - 0.25, lng - 0.25],
+            [lat + 0.25, lng + 0.25]
+        ], {
+            color: "#7dd3fc",
+            fillOpacity: 0
+        });
+    }
+
+    if (!layer) return;
+
+    layer.bindTooltip(tooltip);
+    layer.addTo(map);
+
+    atcLayers[pos.name] = layer;
+}
+
+// =====================
+// 🔁 Temps réel aéroports
+// =====================
+db.ref("airports").on("value", snap => {
+    Object.values(airportLayers).forEach(l => map.removeLayer(l));
+    Object.values(atcLayers).forEach(l => map.removeLayer(l));
+
+    Object.keys(airportLayers).length = 0;
+    Object.keys(atcLayers).length = 0;
+
+    snap.forEach(child => {
+        drawAirport(child.key, child.val());
+    });
+});
+
+// =====================
+// 👑 Admin uniquement
+// =====================
+auth.onAuthStateChanged(user => {
+    if (!user) return;
+
+    db.ref("users/" + user.uid + "/admin").get().then(snap => {
+        if (snap.val() === true) {
+            document.getElementById("adminBtn").style.display = "block";
+        }
+    });
+});
+
+// =====================
+// 👥 Online pilots
+// =====================
+db.ref("onlinepilots").on("value", snap => {
+    document.getElementById("onlineCount").innerText = snap.val() || 0;
 });
 </script>
+
 
 </body>
 </html>
