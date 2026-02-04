@@ -5,7 +5,7 @@
 <title>Kyky Radar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 html, body {
@@ -34,10 +34,6 @@ html, body {
     overflow-y: auto;
 }
 
-#sidebar h2 {
-    margin-top: 0;
-}
-
 #sidebar button {
     width: 100%;
     margin-top: 10px;
@@ -50,10 +46,6 @@ html, body {
     cursor: pointer;
 }
 
-#sidebar button:hover {
-    background: #1d4ed8;
-}
-
 .input-popup {
     width: 100%;
     margin-top: 6px;
@@ -62,11 +54,43 @@ html, body {
     border: none;
 }
 
-#airportDetails {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid rgba(255,255,255,0.2);
+/* ==== ATC STYLE ==== */
+
+.atc-airport {
+    background: #3f3f46;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-weight: 800;
+    text-align: center;
+    min-width: 80px;
 }
+
+.atc-positions {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    justify-content: center;
+}
+
+.atc-box {
+    height: 26px;
+    min-width: 26px;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 13px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+.del { background: #7c3aed; }
+.gnd { background: #f59e0b; }
+.twr { background: #ef4444; }
+.dep { background: #bbf7d0; color: #14532d; }
+.app { background: #0ea5e9; }
 </style>
 </head>
 
@@ -85,7 +109,7 @@ html, body {
         <div id="airportConfig"></div>
     </div>
 
-    <div id="airportDetails">
+    <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.2);padding-top:10px">
         <strong>Aéroport sélectionné</strong>
         <div id="selectedAirport">Aucun</div>
     </div>
@@ -115,15 +139,12 @@ const auth = firebase.auth();
 const map = L.map("map").setView([20, 0], 2);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap & CARTO",
-    subdomains: "abcd",
     maxZoom: 20
 }).addTo(map);
 
 const airportLayer = L.layerGroup().addTo(map);
-const atcLayer = L.layerGroup().addTo(map);
 
-// ================= SIDEBAR =================
+// ================= UI =================
 const adminBtn = document.getElementById("adminBtn");
 const adminControls = document.getElementById("adminControls");
 const newAirportBtn = document.getElementById("newAirportBtn");
@@ -134,15 +155,14 @@ const selectedAirportDiv = document.getElementById("selectedAirport");
 let creatingAirport = false;
 let tempAirport = {};
 
-// correction : long (pas lon)
-newAirportBtn.onclick = () => {
-    alert("Cliquez sur la carte pour placer l'aéroport");
-    creatingAirport = true;
-};
-
 adminBtn.onclick = () => {
     adminControls.style.display =
         adminControls.style.display === "none" ? "block" : "none";
+};
+
+newAirportBtn.onclick = () => {
+    alert("Cliquez sur la carte pour placer l'aéroport");
+    creatingAirport = true;
 };
 
 map.on("click", e => {
@@ -151,35 +171,28 @@ map.on("click", e => {
     tempAirport = {
         lat: e.latlng.lat,
         long: e.latlng.lng,
-        positions: []
+        positions: {
+            DEL:{connected:false},
+            GND:{connected:false},
+            TWR:{connected:false},
+            DEP:{connected:false},
+            APP:{connected:false}
+        }
     };
 
     airportConfig.innerHTML = `
-        <input id="icaoInput" class="input-popup" placeholder="ICAO (4 lettres)">
-        <div id="positions"></div>
-        <button id="addPos">Nouvelle position</button>
+        <input id="icao" class="input-popup" placeholder="ICAO">
+        <input id="atisFreq" class="input-popup" placeholder="Fréquence ATIS">
+        <textarea id="atisText" class="input-popup" placeholder="ATIS"></textarea>
         <button id="confirm">Confirmer</button>
     `;
 
-    document.getElementById("addPos").onclick = () => {
-        const i = tempAirport.positions.length;
-        document.getElementById("positions").innerHTML += `
-            <input id="pname${i}" class="input-popup" placeholder="Nom position">
-            <input id="pfreq${i}" class="input-popup" placeholder="Fréquence">
-        `;
-        tempAirport.positions.push({});
-    };
-
     document.getElementById("confirm").onclick = async () => {
-        const icao = document.getElementById("icaoInput").value.toUpperCase();
-        if (icao.length !== 4) return alert("ICAO invalide");
+        tempAirport.icao = document.getElementById("icao").value.toUpperCase();
+        tempAirport.atisfreq = document.getElementById("atisFreq").value;
+        tempAirport.atis = document.getElementById("atisText").value;
 
-        tempAirport.icao = icao;
-        tempAirport.positions = tempAirport.positions.map((_, i) => ({
-            name: document.getElementById(`pname${i}`).value,
-            frequency: document.getElementById(`pfreq${i}`).value,
-            connected: true
-        }));
+        if (tempAirport.icao.length !== 4) return alert("ICAO invalide");
 
         await db.ref("airports").push(tempAirport);
         airportConfig.innerHTML = "";
@@ -187,66 +200,66 @@ map.on("click", e => {
     };
 });
 
-// ================= DRAW ATC =================
-function drawATC(lat, lng, pos) {
-    if (pos.name.endsWith("_GND")) {
-        L.marker([lat, lng], {
-            icon: L.divIcon({
-                html: "⭐",
-                iconSize: [24, 24],
-                className: ""
-            })
-        }).addTo(atcLayer);
-    }
+// ================= ICON =================
+function airportIcon(a) {
+    const cfg = {
+        DEL:["del","D"],
+        GND:["gnd","G"],
+        TWR:["twr","T"],
+        DEP:["dep","DEP"],
+        APP:["app","A"]
+    };
 
-    else if (pos.name.endsWith("_TWR")) {
-        L.circle([lat, lng], {
-            radius: 10000,
-            color: "red",
-            fillOpacity: 0.15
-        }).addTo(atcLayer);
-    }
+    let boxes = "";
+    Object.entries(cfg).forEach(([k,[cls,label]])=>{
+        if (a.positions?.[k]?.connected) {
+            boxes += `<div class="atc-box ${cls}">${label}</div>`;
+        }
+    });
 
-    else if (pos.name.endsWith("_APP")) {
-        L.circle([lat, lng], {
-            radius: 35000,
-            color: "#60a5fa",
-            fillOpacity: 0.08
-        }).addTo(atcLayer);
-    }
+    return L.divIcon({
+        className:"",
+        iconSize:[120,60],
+        html:`
+        <div class="atc-airport">
+            ${a.icao}
+            <div class="atc-positions">${boxes}</div>
+        </div>`
+    });
 }
 
 // ================= DATA =================
 db.ref("airports").on("value", snap => {
     airportLayer.clearLayers();
-    atcLayer.clearLayers();
 
     snap.forEach(a => {
         const d = a.val();
-
-        const airport = L.circle([d.lat, d.long], {
-            radius: 8000,
-            color: "#3b82f6",
-            fillOpacity: 0.4
-        }).addTo(airportLayer);
-
-        airport.on("click", () => {
-            selectedAirportDiv.innerText = d.icao;
-        });
-
-        if (d.positions) {
-            Object.values(d.positions).forEach(p => {
-                if (p.connected) drawATC(d.lat, d.long, p);
-            });
-        }
+        const m = L.marker([d.lat,d.long],{icon:airportIcon(d)}).addTo(airportLayer);
+        m.on("click",()=>showDetails(d));
     });
 });
 
+function showDetails(a){
+    let list="";
+    Object.entries(a.positions||{}).forEach(([k,p])=>{
+        if(p.connected) list+=`<div>${k}</div>`;
+    });
+
+    selectedAirportDiv.innerHTML=`
+        <strong>${a.icao}</strong><br><br>
+        <strong>ATIS</strong><br>
+        ${a.atisfreq}<br>
+        <em>${a.atis}</em><br><br>
+        <strong>Positions</strong><br>
+        ${list||"Aucune"}
+    `;
+}
+
 // ================= AUTH =================
-auth.onAuthStateChanged(user => {
-    if (!user) return;
-    db.ref("users/" + user.uid + "/admin").get().then(s => {
-        if (s.val() === true) adminBtn.style.display = "block";
+auth.onAuthStateChanged(user=>{
+    if(!user)return;
+    db.ref("users/"+user.uid+"/admin").get().then(s=>{
+        if(s.val()) adminBtn.style.display="block";
     });
 });
 
