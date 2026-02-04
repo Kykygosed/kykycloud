@@ -8,40 +8,66 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
 <style>
-body, html { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
-#map { height:100%; width:100%; }
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Inter, sans-serif;
+}
 
+#map {
+    height: 100%;
+    width: 100%;
+}
+
+/* SIDEBAR PLEINE HAUTEUR */
 #sidebar {
-    position:absolute;
-    top:10px;
-    left:10px;
-    width:260px;
-    background:rgba(20,20,20,0.9);
-    color:white;
-    padding:15px;
-    border-radius:12px;
-    z-index:1000;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100%;
+    background: rgba(20,20,20,0.95);
+    color: white;
+    padding: 20px;
+    box-sizing: border-box;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+#sidebar h2 {
+    margin-top: 0;
 }
 
 #sidebar button {
-    width:100%;
-    margin-top:10px;
-    padding:8px;
-    border:none;
-    border-radius:8px;
-    background:#2563eb;
-    color:white;
-    font-weight:600;
-    cursor:pointer;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
 }
-#sidebar button:hover { background:#1d4ed8; }
+
+#sidebar button:hover {
+    background: #1d4ed8;
+}
 
 .input-popup {
-    width:100%;
-    margin-top:5px;
-    padding:6px;
-    border-radius:6px;
-    border:none;
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 6px;
+    border: none;
+}
+
+/* SECTION AEROPORT SELECTIONNE */
+#airportDetails {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.2);
 }
 </style>
 </head>
@@ -53,11 +79,17 @@ body, html { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
 <div id="sidebar">
     <h2>Kyky Radar</h2>
     <div>Online pilots: <span id="onlineCount">0</span></div>
+
     <button id="adminBtn" style="display:none">Admin</button>
 
     <div id="adminControls" style="display:none">
         <button id="newAirportBtn">Nouvel aéroport</button>
         <div id="airportConfig"></div>
+    </div>
+
+    <div id="airportDetails">
+        <strong>Aéroport sélectionné</strong>
+        <div id="selectedAirport">Aucun</div>
     </div>
 </div>
 
@@ -77,11 +109,12 @@ firebase.initializeApp({
   databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "kyky-c3471"
 });
+
 const db = firebase.database();
 const auth = firebase.auth();
 
 // ================= MAP =================
-const map = L.map("map").setView([20,0], 2);
+const map = L.map("map").setView([20, 0], 2);
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: "&copy; OpenStreetMap & CARTO",
@@ -89,18 +122,19 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 20
 }).addTo(map);
 
-
 const airportLayer = L.layerGroup().addTo(map);
 const atcLayer = L.layerGroup().addTo(map);
 
-// ================= ADMIN =================
+// ================= SIDEBAR ELEMENTS =================
 const adminBtn = document.getElementById("adminBtn");
 const adminControls = document.getElementById("adminControls");
 const newAirportBtn = document.getElementById("newAirportBtn");
 const airportConfig = document.getElementById("airportConfig");
+const selectedAirportDiv = document.getElementById("selectedAirport");
 
+// ================= ADMIN =================
 let creatingAirport = false;
-let tempAirport = { lat:0, long:0, positions:[] };
+let tempAirport = { lat: 0, long: 0, positions: [] };
 
 adminBtn.onclick = () => {
     adminControls.style.display =
@@ -112,12 +146,15 @@ newAirportBtn.onclick = () => {
     creatingAirport = true;
 };
 
-// ================= CLICK MAP =================
+// ================= CLICK MAP (ADMIN CREATION) =================
 map.on("click", e => {
     if (!creatingAirport) return;
 
-    tempAirport.lat = e.latlng.lat;
-    tempAirport.long = e.latlng.lng;
+    tempAirport = {
+        lat: e.latlng.lat,
+        long: e.latlng.lng,
+        positions: []
+    };
 
     airportConfig.innerHTML = `
         <input id="icaoInput" class="input-popup" placeholder="ICAO (4 lettres)">
@@ -140,7 +177,7 @@ map.on("click", e => {
         if (icao.length !== 4) return alert("ICAO invalide");
 
         tempAirport.icao = icao;
-        tempAirport.positions = tempAirport.positions.map((_,i)=>({
+        tempAirport.positions = tempAirport.positions.map((_, i) => ({
             name: document.getElementById(`pname${i}`).value,
             frequency: document.getElementById(`pfreq${i}`).value,
             connected: false
@@ -152,26 +189,28 @@ map.on("click", e => {
     };
 });
 
-// ================= DRAW =================
+// ================= DRAW AIRPORTS & ATC =================
 function drawATC(lat, lng, pos) {
     let shape;
     const tip = `${pos.name}<br>${pos.frequency}`;
 
     if (pos.name.endsWith("_DEL")) {
-        shape = L.marker([lat,lng], {
-            icon: L.divIcon({html:`<div style="width:18px;height:18px;border:3px solid red;transform:rotate(45deg);opacity:.5"></div>`})
+        shape = L.marker([lat, lng], {
+            icon: L.divIcon({
+                html: `<div style="width:18px;height:18px;border:3px solid red;transform:rotate(45deg);opacity:.5"></div>`
+            })
         });
     }
     else if (pos.name.endsWith("_GND"))
-        shape = L.circle([lat,lng], {radius:12000,color:"yellow",fillOpacity:0});
+        shape = L.circle([lat, lng], { radius: 12000, color: "yellow", fillOpacity: 0 });
     else if (pos.name.endsWith("_TWR"))
-        shape = L.rectangle([[lat-0.08,lng-0.08],[lat+0.08,lng+0.08]],{color:"green"});
+        shape = L.rectangle([[lat-0.08, lng-0.08], [lat+0.08, lng+0.08]], { color: "green" });
     else if (pos.name.endsWith("_DEP"))
-        shape = L.rectangle([[lat-0.12,lng-0.12],[lat+0.12,lng+0.12]],{color:"white"});
+        shape = L.rectangle([[lat-0.12, lng-0.12], [lat+0.12, lng+0.12]], { color: "white" });
     else if (pos.name.endsWith("_APP"))
-        shape = L.rectangle([[lat-0.25,lng-0.25],[lat+0.25,lng+0.25]],{color:"#7dd3fc"});
+        shape = L.rectangle([[lat-0.25, lng-0.25], [lat+0.25, lng+0.25]], { color: "#7dd3fc" });
 
-    if(shape) shape.bindTooltip(tip).addTo(atcLayer);
+    if (shape) shape.bindTooltip(tip).addTo(atcLayer);
 }
 
 db.ref("airports").on("value", snap => {
@@ -180,27 +219,35 @@ db.ref("airports").on("value", snap => {
 
     snap.forEach(a => {
         const d = a.val();
-        L.circle([d.lat, d.long], {
-            radius:10000, color:"#3b82f6", fillOpacity:0.4
-        }).bindPopup(d.icao).addTo(airportLayer);
 
-        if (d.positions)
-            Object.values(d.positions).forEach(p=>{
-                if(p.connected) drawATC(d.lat, d.long, p);
+        const airportCircle = L.circle([d.lat, d.long], {
+            radius: 10000,
+            color: "#3b82f6",
+            fillOpacity: 0.4
+        }).addTo(airportLayer);
+
+        airportCircle.on("click", () => {
+            selectedAirportDiv.innerText = d.icao;
+        });
+
+        if (d.positions) {
+            Object.values(d.positions).forEach(p => {
+                if (p.connected) drawATC(d.lat, d.long, p);
             });
+        }
     });
 });
 
 // ================= AUTH =================
-auth.onAuthStateChanged(user=>{
-    if(!user) return;
-    db.ref("users/"+user.uid+"/admin").get().then(s=>{
-        if(s.val()===true) adminBtn.style.display="block";
+auth.onAuthStateChanged(user => {
+    if (!user) return;
+    db.ref("users/" + user.uid + "/admin").get().then(s => {
+        if (s.val() === true) adminBtn.style.display = "block";
     });
 });
 
-// ================= ONLINE =================
-db.ref("onlinepilots").on("value", s=>{
+// ================= ONLINE PILOTS =================
+db.ref("onlinepilots").on("value", s => {
     document.getElementById("onlineCount").innerText = s.val() || 0;
 });
 </script>
