@@ -20,12 +20,11 @@ html, body {
     width: 100%;
 }
 
-/* SIDEBAR PLEINE HAUTEUR */
 #sidebar {
     position: absolute;
     top: 0;
     left: 0;
-    width: 280px;
+    width: 300px;
     height: 100%;
     background: rgba(20,20,20,0.95);
     color: white;
@@ -63,7 +62,6 @@ html, body {
     border: none;
 }
 
-/* SECTION AEROPORT SELECTIONNE */
 #airportDetails {
     margin-top: 20px;
     padding-top: 15px;
@@ -125,7 +123,7 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 const airportLayer = L.layerGroup().addTo(map);
 const atcLayer = L.layerGroup().addTo(map);
 
-// ================= SIDEBAR ELEMENTS =================
+// ================= SIDEBAR =================
 const adminBtn = document.getElementById("adminBtn");
 const adminControls = document.getElementById("adminControls");
 const newAirportBtn = document.getElementById("newAirportBtn");
@@ -134,19 +132,19 @@ const selectedAirportDiv = document.getElementById("selectedAirport");
 
 // ================= ADMIN =================
 let creatingAirport = false;
-let tempAirport = { lat: 0, long: 0, positions: [] };
+let tempAirport = {};
+
+// correction : long (pas lon)
+newAirportBtn.onclick = () => {
+    alert("Cliquez sur la carte pour placer l'aéroport");
+    creatingAirport = true;
+};
 
 adminBtn.onclick = () => {
     adminControls.style.display =
         adminControls.style.display === "none" ? "block" : "none";
 };
 
-newAirportBtn.onclick = () => {
-    alert("Cliquez sur la carte pour placer l'aéroport");
-    creatingAirport = true;
-};
-
-// ================= CLICK MAP (ADMIN CREATION) =================
 map.on("click", e => {
     if (!creatingAirport) return;
 
@@ -180,7 +178,7 @@ map.on("click", e => {
         tempAirport.positions = tempAirport.positions.map((_, i) => ({
             name: document.getElementById(`pname${i}`).value,
             frequency: document.getElementById(`pfreq${i}`).value,
-            connected: false
+            connected: true
         }));
 
         await db.ref("airports").push(tempAirport);
@@ -189,30 +187,36 @@ map.on("click", e => {
     };
 });
 
-// ================= DRAW AIRPORTS & ATC =================
+// ================= DRAW ATC =================
 function drawATC(lat, lng, pos) {
-    let shape;
-    const tip = `${pos.name}<br>${pos.frequency}`;
-
-    if (pos.name.endsWith("_DEL")) {
-        shape = L.marker([lat, lng], {
+    if (pos.name.endsWith("_GND")) {
+        L.marker([lat, lng], {
             icon: L.divIcon({
-                html: `<div style="width:18px;height:18px;border:3px solid red;transform:rotate(45deg);opacity:.5"></div>`
+                html: "⭐",
+                iconSize: [24, 24],
+                className: ""
             })
-        });
+        }).addTo(atcLayer);
     }
-    else if (pos.name.endsWith("_GND"))
-        shape = L.circle([lat, lng], { radius: 12000, color: "yellow", fillOpacity: 0 });
-    else if (pos.name.endsWith("_TWR"))
-        shape = L.rectangle([[lat-0.08, lng-0.08], [lat+0.08, lng+0.08]], { color: "green" });
-    else if (pos.name.endsWith("_DEP"))
-        shape = L.rectangle([[lat-0.12, lng-0.12], [lat+0.12, lng+0.12]], { color: "white" });
-    else if (pos.name.endsWith("_APP"))
-        shape = L.rectangle([[lat-0.25, lng-0.25], [lat+0.25, lng+0.25]], { color: "#7dd3fc" });
 
-    if (shape) shape.bindTooltip(tip).addTo(atcLayer);
+    else if (pos.name.endsWith("_TWR")) {
+        L.circle([lat, lng], {
+            radius: 10000,
+            color: "red",
+            fillOpacity: 0.15
+        }).addTo(atcLayer);
+    }
+
+    else if (pos.name.endsWith("_APP")) {
+        L.circle([lat, lng], {
+            radius: 35000,
+            color: "#60a5fa",
+            fillOpacity: 0.08
+        }).addTo(atcLayer);
+    }
 }
 
+// ================= DATA =================
 db.ref("airports").on("value", snap => {
     airportLayer.clearLayers();
     atcLayer.clearLayers();
@@ -220,13 +224,13 @@ db.ref("airports").on("value", snap => {
     snap.forEach(a => {
         const d = a.val();
 
-        const airportCircle = L.circle([d.lat, d.long], {
-            radius: 10000,
+        const airport = L.circle([d.lat, d.long], {
+            radius: 8000,
             color: "#3b82f6",
             fillOpacity: 0.4
         }).addTo(airportLayer);
 
-        airportCircle.on("click", () => {
+        airport.on("click", () => {
             selectedAirportDiv.innerText = d.icao;
         });
 
@@ -246,7 +250,7 @@ auth.onAuthStateChanged(user => {
     });
 });
 
-// ================= ONLINE PILOTS =================
+// ================= ONLINE =================
 db.ref("onlinepilots").on("value", s => {
     document.getElementById("onlineCount").innerText = s.val() || 0;
 });
