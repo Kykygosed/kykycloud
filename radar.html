@@ -128,12 +128,15 @@ const selectedAirportDiv = document.getElementById("selectedAirport");
 // ================= ADMIN =================
 let creatingAirport = false;
 let tempAirport = {};
+let selectedAirportKey = null;
 
 adminBtn.onclick = () => { adminControls.style.display = adminControls.style.display==="none"?"block":"none"; };
 newAirportBtn.onclick = () => { alert("Cliquez sur la carte pour placer l'aéroport"); creatingAirport=true; };
 
+// ================= CREATE AIRPORT =================
 map.on("click", e => {
     if(!creatingAirport) return;
+
     tempAirport = { lat: e.latlng.lat, long: e.latlng.lng, positions:{} };
     airportConfig.innerHTML = `
         <input id="icao" class="input-popup" placeholder="ICAO">
@@ -165,9 +168,10 @@ function detectType(name){
 // ================= ICON =================
 function airportIcon(a){
     const zoom = map.getZoom();
-    let atLeastOneConnected = Object.values(a.positions||{}).some(p=>p.connected);
+    const positionsArray = Object.values(a.positions||{});
+    let atLeastOneConnected = positionsArray.some(p=>p.connected);
 
-    // Si zoom très bas, afficher point simple
+    // Bas zoom = simple point
     if(zoom<6){
         const color = atLeastOneConnected ? "green" : "red";
         return L.divIcon({
@@ -177,18 +181,16 @@ function airportIcon(a){
         });
     }
 
-    // Taille dynamique selon zoom
+    // Zoom plus élevé = rectangle avec positions
     let scale = zoom<8 ? 0.5 : zoom<10 ? 0.8 : 1;
-
     let boxesHTML="", totalWidth=0;
-    Object.values(a.positions||{}).forEach(p=>{
+    positionsArray.forEach(p=>{
         const [cls,label]=detectType(p.name);
         const boxWidth = Math.max(label.length*8+8,22);
         totalWidth += boxWidth + 4;
-        if(scale>0) boxesHTML += `<div class="atc-box ${cls}" style="width:${boxWidth}px">${label}</div>`;
+        boxesHTML += `<div class="atc-box ${cls}" style="width:${boxWidth}px">${label}</div>`;
     });
-    totalWidth += 12;
-    if(totalWidth<60) totalWidth=60;
+    totalWidth += 12; if(totalWidth<60) totalWidth=60;
     totalWidth *= scale;
     const height = 40*scale;
 
@@ -203,20 +205,23 @@ function airportIcon(a){
 }
 
 // ================= DATA =================
-function renderAirports(){
-    db.ref("airports").once("value").then(snap=>{
-        airportLayer.clearLayers();
-        snap.forEach(a=>{
-            const d = a.val();
-            L.marker([d.lat,d.long],{icon:airportIcon(d)}).addTo(airportLayer)
-             .on("click",()=>showDetails(d));
-        });
+async function renderAirports(){
+    const snap = await db.ref("airports").get();
+    airportLayer.clearLayers();
+    snap.forEach(a=>{
+        const d = a.val();
+        d.key = a.key; // stocker key pour admin
+        L.marker([d.lat,d.long],{icon:airportIcon(d)}).addTo(airportLayer)
+         .on("click",()=>showDetails(d));
     });
 }
 db.ref("airports").on("value", renderAirports);
 map.on("zoomend", renderAirports);
 
+// ================= SHOW DETAILS & ADMIN SELECT =================
 function showDetails(a){
+    selectedAirportKey = a.key || null;
+
     let table = `<table>
         <tr><th>Position</th><th>Nom</th><th>Fréquence</th><th>Occupant</th><th>Connecté</th></tr>`;
     Object.values(a.positions||{}).forEach(p=>{
@@ -238,11 +243,43 @@ function showDetails(a){
     `;
 }
 
+// ================= ADMIN CREATE POSITION =================
+const addPositionBtn = document.createElement("button");
+addPositionBtn.innerText = "Ajouter une position";
+adminControls.appendChild(addPositionBtn);
+addPositionBtn.style.display = "none"; // s'affiche uniquement si aéroport sélectionné
+
+addPositionBtn.onclick = () => {
+    if(!selectedAirportKey) return alert("Sélectionnez un aéroport en cliquant dessus");
+    airportConfig.innerHTML = `
+        <input id="posName" class="input-popup" placeholder="Nom position (_del/_gnd/_twr/_app/_dep)">
+        <input id="posFreq" class="input-popup" placeholder="Fréquence">
+        <input id="posOccupant" class="input-popup" placeholder="Occupant">
+        <button id="posConfirm">Confirmer position</button>
+    `;
+    document.getElementById("posConfirm").onclick = async () => {
+        const name = document.getElementById("posName").value;
+        const freq = document.getElementById("posFreq").value;
+        const occupant = document.getElementById("posOccupant").value;
+        if(!name) return alert("Nom obligatoire");
+
+        const positionsRef = db.ref("airports/"+selectedAirportKey);
+        const snapshot = await positionsRef.get();
+        let nextIndex = 0; snapshot.forEach(()=> nextIndex++);
+        await positionsRef.child(nextIndex).set({name,freq,occupant,connected:false});
+        airportConfig.innerHTML = "";
+        renderAirports();
+    };
+};
+
 // ================= AUTH =================
 auth.onAuthStateChanged(user=>{
     if(!user)return;
     db.ref("users/"+user.uid+"/admin").get().then(s=>{
-        if(s.val()) adminBtn.style.display="block";
+        if(s.val()) { 
+            adminBtn.style.display="block"; 
+            addPositionBtn.style.display = selectedAirportKey ? "block":"none";
+        }
     });
 });
 
@@ -250,6 +287,7 @@ auth.onAuthStateChanged(user=>{
 db.ref("onlinepilots").on("value", s=>{
     document.getElementById("onlineCount").innerText = s.val()||0;
 });
+
 </script>
 </body>
 </html>
