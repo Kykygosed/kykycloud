@@ -171,7 +171,7 @@ newAirportBtn.onclick = () => {
     creatingAirport = true; 
 };
 
-map.on("click", e => {
+map.on("click", async e => {
     if(!creatingAirport) return;
 
     tempAirport = { lat: e.latlng.lat, long: e.latlng.lng, positions:{} };
@@ -186,8 +186,16 @@ map.on("click", e => {
         tempAirport.atisfreq = document.getElementById("atisFreq").value;
         tempAirport.atis = document.getElementById("atisText").value;
         if(tempAirport.icao.length!==4) return alert("ICAO invalide");
-        await db.ref("airports").push(tempAirport);
-        airportConfig.innerHTML = ""; creatingAirport=false;
+
+        const ref = await db.ref("airports").push(tempAirport);
+        airportConfig.innerHTML = ""; 
+        creatingAirport=false;
+
+        // Sélection automatique du nouvel aéroport
+        const snap = await ref.get();
+        const newAirport = snap.val();
+        newAirport.key = ref.key;
+        showDetails(newAirport);
     };
 });
 
@@ -255,48 +263,21 @@ async function renderAirports(){
 db.ref("airports").on("value", renderAirports);
 map.on("zoomend", renderAirports);
 
-// ================= SHOW DETAILS & ADMIN SELECT =================
-function showDetails(a){
-    selectedAirportKey = a.key || null;
-
-    let table = `<table>
-        <tr><th>Position</th><th>Nom</th><th>Fréquence</th><th>Occupant</th><th>Connecté</th></tr>`;
-    Object.values(a.positions||{}).forEach(p=>{
-        const [cls,label]=detectType(p.name);
-        const connectedClass = p.connected ? "connected-cell" : "disconnected-cell";
-        table += `<tr>
-            <td>${label}</td>
-            <td>${p.name||"-"}</td>
-            <td>${p.freq||"-"}</td>
-            <td>${p.occupant||"-"}</td>
-            <td class="${connectedClass}">${p.connected?"Oui":"Non"}</td>
-        </tr>`;
-    });
-    table += `</table>`;
-    selectedAirportDiv.innerHTML=`
-        <strong>${a.icao}</strong><br><br>
-        <strong>ATIS</strong><br>${a.atisfreq||"-"}<br><em>${a.atis||"-"}</em><br><br>
-        <strong>Positions</strong><br>${table}
-    `;
-}
-
 // ================= ADMIN CREATE POSITION BUTTON =================
 const addPositionBtn = document.createElement("button");
 addPositionBtn.innerText = "Ajouter une position";
 adminControls.appendChild(addPositionBtn);
 addPositionBtn.style.display = "none"; // invisible par défaut
 
-// Fonction pour mettre à jour la sélection et afficher le bouton si admin
-function selectAirport(a) {
+function selectAirport(a){
     selectedAirportKey = a.key || null;
     addPositionBtn.style.display = (selectedAirportKey && adminBtn.style.display!=="none") ? "block" : "none";
-    showDetails(a);
+    showDetails(a,true);
 }
 
-// Modifier la fonction showDetails pour utiliser selectAirport
-function showDetails(a){
-    selectAirport(a); // met à jour bouton + sélection
-
+// ================= SHOW DETAILS =================
+function showDetails(a,updateBtn=false){
+    if(updateBtn) selectedAirportKey=a.key; // sélection
     let table = `<table>
         <tr><th>Position</th><th>Nom</th><th>Fréquence</th><th>Occupant</th><th>Connecté</th></tr>`;
     Object.values(a.positions||{}).forEach(p=>{
@@ -318,24 +299,29 @@ function showDetails(a){
     `;
 }
 
-// ================= AFTER CREATING AIRPORT =================
-document.getElementById("confirm").onclick = async () => {
-    tempAirport.icao = document.getElementById("icao").value.toUpperCase();
-    tempAirport.atisfreq = document.getElementById("atisFreq").value;
-    tempAirport.atis = document.getElementById("atisText").value;
-    if(tempAirport.icao.length!==4) return alert("ICAO invalide");
+// ================= ADD POSITION LOGIC =================
+addPositionBtn.onclick = () => {
+    if(!selectedAirportKey) return alert("Sélectionnez un aéroport en cliquant dessus");
+    airportConfig.innerHTML = `
+        <input id="posName" class="input-popup" placeholder="Nom position (_del/_gnd/_twr/_app/_dep)">
+        <input id="posFreq" class="input-popup" placeholder="Fréquence">
+        <input id="posOccupant" class="input-popup" placeholder="Occupant">
+        <button id="posConfirm">Confirmer position</button>
+    `;
+    document.getElementById("posConfirm").onclick = async () => {
+        const name = document.getElementById("posName").value;
+        const freq = document.getElementById("posFreq").value;
+        const occupant = document.getElementById("posOccupant").value;
+        if(!name) return alert("Nom obligatoire");
 
-    const ref = await db.ref("airports").push(tempAirport);
-    airportConfig.innerHTML = ""; 
-    creatingAirport=false;
-
-    // Sélectionner le nouvel aéroport automatiquement
-    const snap = await ref.get();
-    const newAirport = snap.val();
-    newAirport.key = ref.key;
-    showDetails(newAirport); // affiche détails + bouton Ajouter position
+        const positionsRef = db.ref("airports/"+selectedAirportKey);
+        const snapshot = await positionsRef.get();
+        let nextIndex = 0; snapshot.forEach(()=> nextIndex++);
+        await positionsRef.child(nextIndex).set({name,freq,occupant,connected:false});
+        airportConfig.innerHTML = "";
+        renderAirports();
+    };
 };
-
 
 // ================= AUTH =================
 auth.onAuthStateChanged(user=>{
@@ -343,7 +329,6 @@ auth.onAuthStateChanged(user=>{
     db.ref("users/"+user.uid+"/admin").get().then(s=>{
         if(s.val()) { 
             adminBtn.style.display="block"; 
-            addPositionBtn.style.display = selectedAirportKey ? "block":"none";
         }
     });
 });
