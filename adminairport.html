@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Admin Aéroports</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background: #121212; color: #fff; }
+input, textarea { width: 100%; margin: 5px 0; padding: 6px; border-radius: 6px; border: none; }
+button { padding: 8px 12px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; margin-top: 5px; }
+hr { border-color: #444; }
+.position-item { background: #1f1f1f; padding: 10px; margin-top: 5px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Admin Création Aéroport</h1>
+
+<h2>Nouveau Aéroport</h2>
+<input id="icao" placeholder="ICAO (4 lettres)">
+<input id="atisFreq" placeholder="Fréquence ATIS">
+<textarea id="atisText" placeholder="ATIS texte"></textarea>
+<button id="createAirportBtn">Créer Aéroport</button>
+
+<hr>
+<h2>Ajouter Positions</h2>
+<select id="airportSelect">
+    <option value="">-- Sélectionnez un aéroport --</option>
+</select>
+
+<div id="positionsContainer"></div>
+
+<input id="posName" placeholder="Nom position (_del/_gnd/_twr/_app/_dep)">
+<input id="posFreq" placeholder="Fréquence">
+<input id="posOccupant" placeholder="Occupant">
+<button id="addPositionBtn">Ajouter Position</button>
+
+<hr>
+<h2>Aéroports existants</h2>
+<div id="airportList"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+  authDomain: "kyky-c3471.firebaseapp.com",
+  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kyky-c3471"
+});
+const db = firebase.database();
+
+// ========== CREER AEROPORT ==========
+document.getElementById("createAirportBtn").onclick = async () => {
+    const icao = document.getElementById("icao").value.toUpperCase();
+    const freq = document.getElementById("atisFreq").value;
+    const atis = document.getElementById("atisText").value;
+
+    if(icao.length!==4) return alert("ICAO invalide");
+    const ref = await db.ref("airports").push({icao, atisfreq: freq, atis, positions:{}});
+    document.getElementById("icao").value="";
+    document.getElementById("atisFreq").value="";
+    document.getElementById("atisText").value="";
+    loadAirports();
+};
+
+// ========== CHARGER AEROPORTS ==========
+async function loadAirports(){
+    const snap = await db.ref("airports").get();
+    const select = document.getElementById("airportSelect");
+    const list = document.getElementById("airportList");
+    select.innerHTML = '<option value="">-- Sélectionnez un aéroport --</option>';
+    list.innerHTML = '';
+    snap.forEach(a=>{
+        const d = a.val();
+        d.key = a.key;
+        select.innerHTML += `<option value="${d.key}">${d.icao}</option>`;
+        list.innerHTML += `<div class="position-item"><strong>${d.icao}</strong> ATIS: ${d.atisfreq} - ${d.atis}</div>`;
+    });
+}
+loadAirports();
+
+// ========== AJOUTER POSITION ==========
+document.getElementById("addPositionBtn").onclick = async () => {
+    const airportKey = document.getElementById("airportSelect").value;
+    if(!airportKey) return alert("Sélectionnez un aéroport");
+
+    const name = document.getElementById("posName").value;
+    const freq = document.getElementById("posFreq").value;
+    const occupant = document.getElementById("posOccupant").value;
+    if(!name) return alert("Nom obligatoire");
+
+    const positionsRef = db.ref("airports/"+airportKey);
+    const snapshot = await positionsRef.get();
+    let nextIndex = 0; snapshot.forEach(()=> nextIndex++);
+    await positionsRef.child(nextIndex).set({name,freq,occupant,connected:false});
+
+    document.getElementById("posName").value="";
+    document.getElementById("posFreq").value="";
+    document.getElementById("posOccupant").value="";
+    loadAirports();
+};
+</script>
+</body>
+</html>
