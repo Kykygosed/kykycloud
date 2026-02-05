@@ -8,102 +8,72 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    font-family: Inter, sans-serif;
-}
-
-#map {
-    height: 100%;
-    width: 100%;
-}
+html, body { margin:0; padding:0; height:100%; font-family: Inter, sans-serif; }
+#map { height: 100%; width: 100%; }
 
 #sidebar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 300px;
-    height: 100%;
-    background: rgba(20,20,20,0.95);
-    color: white;
-    padding: 20px;
-    box-sizing: border-box;
-    z-index: 1000;
-    overflow-y: auto;
+    position:absolute; top:0; left:0; width:300px; height:100%;
+    background: rgba(20,20,20,0.95); color:white; padding:20px;
+    box-sizing:border-box; z-index:1000; overflow-y:auto;
 }
 
-#sidebar button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 8px;
-    border: none;
-    border-radius: 8px;
-    background: #2563eb;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-}
+#sidebar button { width:100%; margin-top:10px; padding:8px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:600; cursor:pointer; }
+.input-popup { width:100%; margin-top:6px; padding:6px; border-radius:6px; border:none; }
 
-.input-popup {
-    width: 100%;
-    margin-top: 6px;
-    padding: 6px;
-    border-radius: 6px;
-    border: none;
-}
-
-/* ==== ATC STYLE ==== */
-
+/* === ATC RECTANGLE === */
 .atc-airport {
     background: #3f3f46;
     color: white;
-    padding: 6px 10px;
-    border-radius: 10px;
+    padding: 6px;
     font-weight: 800;
     font-size: 14px;
     line-height: 1.2;
     text-align: center;
-    min-width: 80px;
+    display: inline-block;
+    white-space: nowrap;
 }
-
 
 .atc-positions {
     display: flex;
     gap: 4px;
-    margin-top: 4px;
     justify-content: center;
+    flex-wrap: nowrap; /* ne pas empiler */
 }
 
 .atc-box {
     height: 22px;
     min-width: 22px;
-    border-radius: 6px;
+    border-radius: 0; /* angles droits */
     font-weight: 700;
     font-size: 11px;
     line-height: 1;
     color: white;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     padding: 0 4px;
     box-sizing: border-box;
 }
 
-
+/* Couleurs positions */
 .del { background: #7c3aed; }
 .gnd { background: #f59e0b; }
 .twr { background: #ef4444; }
-.dep { background: #bbf7d0; color: #14532d; }
+.dep { background: #bbf7d0; color:#14532d; }
 .app { background: #0ea5e9; }
+.connected { color: #0f0; }
+.disconnected { color: #f00; }
+
+/* Sidebar tableau */
+#selectedAirport table { width:100%; border-collapse: collapse; margin-top:10px; }
+#selectedAirport th, #selectedAirport td { border:1px solid rgba(255,255,255,0.2); padding:4px; text-align:center; font-size:12px; }
+#selectedAirport th { background: rgba(255,255,255,0.1); }
+.connected-cell { background: #14532d; color:white; }
+.disconnected-cell { background: #991b1b; color:white; }
 </style>
 </head>
 
 <body>
-
 <div id="map"></div>
 
 <div id="sidebar">
@@ -145,11 +115,7 @@ const auth = firebase.auth();
 
 // ================= MAP =================
 const map = L.map("map").setView([20, 0], 2);
-
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20
-}).addTo(map);
-
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 20 }).addTo(map);
 const airportLayer = L.layerGroup().addTo(map);
 
 // ================= UI =================
@@ -163,103 +129,112 @@ const selectedAirportDiv = document.getElementById("selectedAirport");
 let creatingAirport = false;
 let tempAirport = {};
 
-adminBtn.onclick = () => {
-    adminControls.style.display =
-        adminControls.style.display === "none" ? "block" : "none";
-};
-
-newAirportBtn.onclick = () => {
-    alert("Cliquez sur la carte pour placer l'aéroport");
-    creatingAirport = true;
-};
+adminBtn.onclick = () => { adminControls.style.display = adminControls.style.display==="none"?"block":"none"; };
+newAirportBtn.onclick = () => { alert("Cliquez sur la carte pour placer l'aéroport"); creatingAirport=true; };
 
 map.on("click", e => {
-    if (!creatingAirport) return;
-
-    tempAirport = {
-        lat: e.latlng.lat,
-        long: e.latlng.lng,
-        positions: {
-            DEL:{connected:false},
-            GND:{connected:false},
-            TWR:{connected:false},
-            DEP:{connected:false},
-            APP:{connected:false}
-        }
-    };
-
+    if(!creatingAirport) return;
+    tempAirport = { lat: e.latlng.lat, long: e.latlng.lng, positions:{} };
     airportConfig.innerHTML = `
         <input id="icao" class="input-popup" placeholder="ICAO">
         <input id="atisFreq" class="input-popup" placeholder="Fréquence ATIS">
         <textarea id="atisText" class="input-popup" placeholder="ATIS"></textarea>
         <button id="confirm">Confirmer</button>
     `;
-
     document.getElementById("confirm").onclick = async () => {
         tempAirport.icao = document.getElementById("icao").value.toUpperCase();
         tempAirport.atisfreq = document.getElementById("atisFreq").value;
         tempAirport.atis = document.getElementById("atisText").value;
-
-        if (tempAirport.icao.length !== 4) return alert("ICAO invalide");
-
+        if(tempAirport.icao.length!==4) return alert("ICAO invalide");
         await db.ref("airports").push(tempAirport);
-        airportConfig.innerHTML = "";
-        creatingAirport = false;
+        airportConfig.innerHTML = ""; creatingAirport=false;
     };
 });
 
-// ================= ICON =================
-function airportIcon(a) {
-    const cfg = {
-        DEL:["del","D"],
-        GND:["gnd","G"],
-        TWR:["twr","T"],
-        DEP:["dep","DEP"],
-        APP:["app","A"]
-    };
+// ================= TYPE POSITION =================
+function detectType(name){
+    name = (name||"").toLowerCase();
+    if(name.endsWith("_del")) return ["del","D"];
+    if(name.endsWith("_gnd")) return ["gnd","G"];
+    if(name.endsWith("_twr")) return ["twr","T"];
+    if(name.endsWith("_app")) return ["app","A"];
+    if(name.endsWith("_dep")) return ["dep","DEP"];
+    return ["del","D"];
+}
 
-    let boxes = "";
-    Object.entries(cfg).forEach(([k,[cls,label]])=>{
-        if (a.positions?.[k]?.connected) {
-            boxes += `<div class="atc-box ${cls}">${label}</div>`;
-        }
+// ================= ICON =================
+function airportIcon(a){
+    const zoom = map.getZoom();
+    let atLeastOneConnected = Object.values(a.positions||{}).some(p=>p.connected);
+
+    // Si zoom très bas, afficher point simple
+    if(zoom<6){
+        const color = atLeastOneConnected ? "green" : "red";
+        return L.divIcon({
+            className:"",
+            iconSize:[12,12],
+            html:`<div style="width:12px;height:12px;background:${color};border-radius:50%;"></div>`
+        });
+    }
+
+    // Taille dynamique selon zoom
+    let scale = zoom<8 ? 0.5 : zoom<10 ? 0.8 : 1;
+
+    let boxesHTML="", totalWidth=0;
+    Object.values(a.positions||{}).forEach(p=>{
+        const [cls,label]=detectType(p.name);
+        const boxWidth = Math.max(label.length*8+8,22);
+        totalWidth += boxWidth + 4;
+        if(scale>0) boxesHTML += `<div class="atc-box ${cls}" style="width:${boxWidth}px">${label}</div>`;
     });
+    totalWidth += 12;
+    if(totalWidth<60) totalWidth=60;
+    totalWidth *= scale;
+    const height = 40*scale;
 
     return L.divIcon({
         className:"",
-        iconSize:[120,60],
-        html:`
-        <div class="atc-airport">
-            ${a.icao}
-            <div class="atc-positions">${boxes}</div>
-        </div>`
+        iconSize:[totalWidth,height],
+        html: `<div class="atc-airport" style="width:${totalWidth}px; transform: scale(${scale}); transform-origin: top center;">
+                ${a.icao}
+                <div class="atc-positions">${boxesHTML}</div>
+               </div>`
     });
 }
 
 // ================= DATA =================
-db.ref("airports").on("value", snap => {
-    airportLayer.clearLayers();
-
-    snap.forEach(a => {
-        const d = a.val();
-        const m = L.marker([d.lat,d.long],{icon:airportIcon(d)}).addTo(airportLayer);
-        m.on("click",()=>showDetails(d));
+function renderAirports(){
+    db.ref("airports").once("value").then(snap=>{
+        airportLayer.clearLayers();
+        snap.forEach(a=>{
+            const d = a.val();
+            L.marker([d.lat,d.long],{icon:airportIcon(d)}).addTo(airportLayer)
+             .on("click",()=>showDetails(d));
+        });
     });
-});
+}
+db.ref("airports").on("value", renderAirports);
+map.on("zoomend", renderAirports);
 
 function showDetails(a){
-    let list="";
-    Object.entries(a.positions||{}).forEach(([k,p])=>{
-        if(p.connected) list+=`<div>${k}</div>`;
+    let table = `<table>
+        <tr><th>Position</th><th>Nom</th><th>Fréquence</th><th>Occupant</th><th>Connecté</th></tr>`;
+    Object.values(a.positions||{}).forEach(p=>{
+        const [cls,label]=detectType(p.name);
+        const connectedClass = p.connected ? "connected-cell" : "disconnected-cell";
+        table += `<tr>
+            <td>${label}</td>
+            <td>${p.name||"-"}</td>
+            <td>${p.freq||"-"}</td>
+            <td>${p.occupant||"-"}</td>
+            <td class="${connectedClass}">${p.connected?"Oui":"Non"}</td>
+        </tr>`;
     });
-
+    table += `</table>`;
     selectedAirportDiv.innerHTML=`
         <strong>${a.icao}</strong><br><br>
-        <strong>ATIS</strong><br>
-        ${a.atisfreq}<br>
-        <em>${a.atis}</em><br><br>
-        <strong>Positions</strong><br>
-        ${list||"Aucune"}
+        <strong>ATIS</strong><br>${a.atisfreq||"-"}<br><em>${a.atis||"-"}</em><br><br>
+        <strong>Positions</strong><br>${table}
     `;
 }
 
@@ -272,10 +247,9 @@ auth.onAuthStateChanged(user=>{
 });
 
 // ================= ONLINE =================
-db.ref("onlinepilots").on("value", s => {
-    document.getElementById("onlineCount").innerText = s.val() || 0;
+db.ref("onlinepilots").on("value", s=>{
+    document.getElementById("onlineCount").innerText = s.val()||0;
 });
 </script>
-
 </body>
 </html>
