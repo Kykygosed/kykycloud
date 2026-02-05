@@ -162,8 +162,16 @@ let creatingAirport = false;
 let tempAirport = {};
 let selectedAirportKey = null;
 
-// Admin button
-adminBtn.onclick = () => { adminControls.style.display = adminControls.style.display==="none"?"block":"none"; };
+// Bouton ajouter position
+const addPositionBtn = document.createElement("button");
+addPositionBtn.innerText = "Ajouter une position";
+addPositionBtn.style.display = "none"; // invisible par défaut
+adminControls.appendChild(addPositionBtn);
+
+// Admin toggle
+adminBtn.onclick = () => {
+    adminControls.style.display = adminControls.style.display === "none" ? "block" : "none";
+};
 
 // ================= CREATE AIRPORT =================
 newAirportBtn.onclick = () => { 
@@ -191,11 +199,14 @@ map.on("click", async e => {
         airportConfig.innerHTML = ""; 
         creatingAirport=false;
 
-        // Sélection automatique du nouvel aéroport
         const snap = await ref.get();
         const newAirport = snap.val();
         newAirport.key = ref.key;
+        selectedAirportKey = ref.key;
+
         showDetails(newAirport);
+        addPositionBtn.style.display = "block"; // bouton visible
+        renderAirports();
     };
 });
 
@@ -216,7 +227,6 @@ function airportIcon(a){
     const positionsArray = Object.values(a.positions||{});
     let atLeastOneConnected = positionsArray.some(p=>p.connected);
 
-    // Bas zoom = simple point
     if(zoom<6){
         const color = atLeastOneConnected ? "green" : "red";
         return L.divIcon({
@@ -226,7 +236,6 @@ function airportIcon(a){
         });
     }
 
-    // Zoom plus élevé = rectangle avec positions
     let scale = zoom<8 ? 0.5 : zoom<10 ? 0.8 : 1;
     let boxesHTML="", totalWidth=0;
     positionsArray.forEach(p=>{
@@ -263,21 +272,11 @@ async function renderAirports(){
 db.ref("airports").on("value", renderAirports);
 map.on("zoomend", renderAirports);
 
-// ================= ADMIN CREATE POSITION BUTTON =================
-const addPositionBtn = document.createElement("button");
-addPositionBtn.innerText = "Ajouter une position";
-adminControls.appendChild(addPositionBtn);
-addPositionBtn.style.display = "none"; // invisible par défaut
-
-function selectAirport(a){
-    selectedAirportKey = a.key || null;
-    addPositionBtn.style.display = (selectedAirportKey && adminBtn.style.display!=="none") ? "block" : "none";
-    showDetails(a,true);
-}
-
 // ================= SHOW DETAILS =================
-function showDetails(a,updateBtn=false){
-    if(updateBtn) selectedAirportKey=a.key; // sélection
+function showDetails(a){
+    selectedAirportKey = a.key;
+    if(adminBtn.style.display!=="none") addPositionBtn.style.display="block";
+
     let table = `<table>
         <tr><th>Position</th><th>Nom</th><th>Fréquence</th><th>Occupant</th><th>Connecté</th></tr>`;
     Object.values(a.positions||{}).forEach(p=>{
