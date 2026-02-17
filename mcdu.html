@@ -3,740 +3,634 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A320 FPL Editor</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<title>A320 MCDU</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#0a0a0f;font-family:'Courier New',monospace;overflow:hidden}
-#app{display:flex;height:100vh}
-#sb{width:275px;min-width:275px;background:#0c0c14;border-right:2px solid #13132a;display:flex;flex-direction:column;overflow:hidden;z-index:10}
-#mapwrap{flex:1;position:relative}
-#map{width:100%;height:100%}
-.sbh{padding:9px 11px;background:#09090f;border-bottom:2px solid #13132a;display:flex;align-items:center;gap:8px}
-.sbh h1{color:#00e000;font-size:12px;letter-spacing:2px;font-weight:bold}
-.mlink{margin-left:auto;padding:4px 9px;background:#001800;border:1px solid #00aa00;border-radius:4px;color:#00ee00;font-family:'Courier New',monospace;font-size:10px;cursor:pointer;text-decoration:none;transition:all .15s}
-.mlink:hover{background:#002800}
-.tabs{display:flex;border-bottom:1px solid #13132a}
-.tab{flex:1;padding:6px 2px;background:#09090f;color:#445;font-size:10px;text-align:center;cursor:pointer;border:none;font-family:'Courier New',monospace;transition:all .12s;border-bottom:2px solid transparent}
-.tab:hover{color:#aaa}
-.tab.on{color:#00e000;border-bottom-color:#00e000;background:#001500}
-.panel{display:none;flex-direction:column;flex:1;overflow:hidden}
-.panel.on{display:flex}
-.sec{padding:6px 10px;font-size:9px;color:#334;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #0d0d1a;flex-shrink:0}
-.tools{padding:6px 7px;display:flex;flex-direction:column;gap:3px;flex-shrink:0}
-.tool{width:100%;padding:5px 9px;background:#0d0d1c;border:1px solid #181828;border-radius:4px;color:#889;font-family:'Courier New',monospace;font-size:11px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .1s}
-.tool:hover{background:#131326;color:#bbc}
-.tool.on{background:#001a00;border-color:#007700;color:#00ee00}
-.ic{font-size:12px;min-width:15px}
-.form{padding:7px 9px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
-.form.h{display:none}
-.fg label{display:block;font-size:8px;color:#445;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
-.fg input,.fg select{width:100%;background:#060610;border:1px solid #181828;border-radius:3px;color:#00dd00;font-family:'Courier New',monospace;font-size:12px;padding:3px 6px;text-transform:uppercase;outline:none}
-.fg input:focus,.fg select:focus{border-color:#007700}
-.fg select{color:#00aabb}
-.hint{font-size:9px;color:#334;padding:2px 0 4px;line-height:1.4}
-.abtn{width:100%;padding:5px;background:#002800;border:1px solid #008800;border-radius:4px;color:#00ee00;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;margin-top:2px;transition:all .1s}
-.abtn:hover{background:#004400}
-.abtn.am{background:#281400;border-color:#cc7700;color:#ff9800}
-.abtn.am:hover{background:#3a1f00}
-.list{flex:1;overflow-y:auto;padding:5px 7px}
-.list::-webkit-scrollbar{width:3px}
-.list::-webkit-scrollbar-thumb{background:#181828}
-.li{display:flex;align-items:center;gap:5px;padding:4px 6px;background:#0d0d1a;border:1px solid #12122a;border-radius:4px;margin-bottom:3px;font-size:11px;cursor:pointer;transition:all .1s}
-.li:hover{background:#121228;border-color:#1a1a38}
-.li.dep{border-left:3px solid #ff9800}
-.li.arr{border-left:3px solid #ff4040}
-.li.sid{border-left:3px solid #00ccff}
-.li.ils{border-left:3px solid #ff44ff}
-.li.in{opacity:.35;cursor:default}
-.ln{color:#334;min-width:18px;font-size:10px}
-.lname{color:#00e000;font-weight:bold;flex:1}
-.linfo{color:#446;font-size:10px}
-.ldel{color:#ff4040;cursor:pointer;padding:0 3px;margin-left:auto;font-size:13px}
-.ldel:hover{color:#ff8888}
-.ladd{color:#00aa00;padding:0 2px;font-size:13px}
-.sbtn{margin:6px 7px;padding:7px;background:#003a00;border:2px solid #00bb00;border-radius:5px;color:#00ff00;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;letter-spacing:1px;font-weight:bold;transition:all .15s;flex-shrink:0}
-.sbtn:hover{background:#004e00;box-shadow:0 0 12px rgba(0,200,0,.25)}
-#dbst{position:fixed;top:9px;right:9px;padding:3px 9px;border-radius:4px;font-size:10px;z-index:9999;border:1px solid #222;color:#555;background:#090909}
-#dbst.ok{background:#001800;border-color:#005500;color:#009900}
-#dbst.err{background:#180000;border-color:#550000;color:#990000}
-#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#002800;border:1px solid #009900;color:#00ee00;font-family:'Courier New',monospace;font-size:11px;padding:6px 16px;border-radius:4px;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
-#toast.am{background:#281400;border-color:#cc7700;color:#ff9800}
-#toast.show{opacity:1}
-/* search */
-.srch{padding:5px 7px;flex-shrink:0}
-.srch input{width:100%;background:#060610;border:1px solid #181828;border-radius:3px;color:#00dd00;font-family:'Courier New',monospace;font-size:11px;padding:4px 7px;outline:none}
-.srch input:focus{border-color:#007700}
-/* db stats strip */
-.dstat{flex:1;padding:3px 2px;text-align:center;font-size:9px;color:#445;border-right:1px solid #0d0d1a;cursor:default;letter-spacing:.5px}
-.dstat span{color:#00aa00;font-weight:bold}
-.dstat:last-child{border-right:none}
-/* route controls */
-.rctrl{padding:5px 7px;display:flex;gap:4px;flex-shrink:0}
-.rctrl button{flex:1;padding:5px;font-size:9.5px}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%;height:100%;background:#0d0d0d;display:flex;align-items:center;justify-content:center;font-family:'Courier New',monospace;overflow:hidden; }
+
+.mcdu {
+  width:352px;
+  background:linear-gradient(165deg,#7fa0be 0%,#5e83a0 45%,#4a6a85 100%);
+  border-radius:16px;padding:12px 8px 8px;
+  box-shadow:0 10px 50px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.12);
+}
+.mcdu-header { display:flex;justify-content:space-between;align-items:center;padding:0 4px 8px; }
+.corner { width:17px;height:17px;background:#c8c8c8;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.5); }
+.leds { display:flex;gap:4px; }
+.led { width:21px;height:7px;background:#131313;border-radius:3px;border:1px solid #2a2a2a; }
+
+/* Screen wrap */
+.scr-wrap { background:#1c2933;border-radius:10px;padding:5px;margin-bottom:8px;
+  box-shadow:inset 0 0 14px rgba(0,0,0,.85),0 0 0 2px #253545; }
+.lsk-row { display:flex;align-items:stretch; }
+.lsk-col { display:flex;flex-direction:column;justify-content:space-around;padding:1px 0; }
+.lsk-col.l { margin-right:3px; }
+.lsk-col.r { margin-left:3px; }
+.lsk { width:22px;height:26px;background:#080808;border:1px solid #333;border-radius:3px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .08s; }
+.lsk::after { content:'—';color:#666;font-size:10px; }
+.lsk:hover { background:#1e1e1e; }
+.lsk:active { background:#383838; }
+
+#scr { background:#000;border-radius:6px;width:100%;min-height:270px;
+  display:flex;flex-direction:column;padding:5px 6px 3px; }
+.s-title { text-align:center;font-size:13px;font-weight:bold;color:#fff;
+  letter-spacing:1.5px;margin-bottom:1px;min-height:17px; }
+.s-rows { flex:1;display:flex;flex-direction:column; }
+.s-row { flex:1;display:flex;justify-content:space-between;align-items:center;
+  padding:0 1px;min-height:37px; }
+.sc { display:flex;flex-direction:column; }
+.sc.r { align-items:flex-end;text-align:right; }
+.sl { font-size:8.5px;color:#666;text-transform:uppercase;letter-spacing:.3px;min-height:11px; }
+.sv { font-size:12.5px;font-weight:bold;line-height:1.2;white-space:nowrap; }
+.spad { border-top:1px solid #0e0e0e;padding:3px 3px 0;font-size:12.5px;
+  font-weight:bold;color:#fff;min-height:20px;letter-spacing:.4px; }
+
+/* colors */
+.w{color:#fff} .g{color:#00df00} .a{color:#ff9800} .c{color:#00c8f0}
+.m{color:#ff44ff} .y{color:#ffff00} .r{color:#ff4040} .dim{color:#444}
+
+/* Func btns */
+.fb-area { display:flex;flex-direction:column;gap:3px;margin-bottom:3px; }
+.fb-row { display:flex;gap:2px;justify-content:center; }
+.fb { flex:1;padding:4px 1px;background:#0d0d0d;border:1px solid #3a3a3a;border-radius:4px;
+  color:#ccc;font-family:'Courier New',monospace;font-size:8.5px;font-weight:bold;
+  cursor:pointer;text-align:center;line-height:1.15;
+  box-shadow:0 2px 3px rgba(0,0,0,.6);transition:background .1s; }
+.fb:hover{background:#1e1e1e} .fb:active{background:#3a3a3a}
+.fb.on{background:#003388;color:#fff;border-color:#004ccc}
+.fb.dead{background:#070707;color:#2a2a2a;cursor:default}
+
+/* Keys */
+.kb { display:flex;gap:4px;margin-bottom:2px; }
+.kb2 { display:flex;gap:3px;margin-top:2px; }
+.nb { display:flex;flex-direction:column;gap:3px; }
+.nr { display:flex;gap:3px; }
+.ab { flex:1;display:flex;flex-direction:column;gap:3px; }
+.ar { display:flex;gap:3px; }
+.k { width:28px;height:28px;min-width:28px;background:#0d0d0d;border:1px solid #3a3a3a;
+  border-radius:5px;color:#d5d5d5;font-family:'Courier New',monospace;font-size:11px;
+  font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 4px rgba(0,0,0,.7);transition:background .07s;flex-shrink:0; }
+.k:hover{background:#1e1e1e} .k:active{background:#3a3a3a;transform:translateY(1px)}
+.kw{width:44px;font-size:8.5px} .kww{width:36px;font-size:9px}
+.kbd{border:2px solid #888}
+.brow { display:flex;gap:3px;margin-top:2px; }
+
+/* Nav block */
+.nv { display:flex;flex-direction:column;gap:3px; }
+.nvr { display:flex;gap:3px; }
+
+/* Editor link */
+.ed-link {
+  position:fixed;top:14px;right:14px;
+  background:#001800;border:1px solid #00aa00;border-radius:6px;
+  color:#00ee00;font-family:'Courier New',monospace;font-size:11px;
+  padding:7px 14px;cursor:pointer;letter-spacing:1px;text-decoration:none;
+  box-shadow:0 2px 12px rgba(0,180,0,.18);transition:all .15s;z-index:10;
+}
+.ed-link:hover{background:#002200;box-shadow:0 2px 18px rgba(0,255,0,.3)}
+
+/* FB status badge */
+#fb-status { position:fixed;bottom:14px;right:14px;font-family:'Courier New',monospace;
+  font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid #333;color:#666; }
+#fb-status.ok{background:#001800;border-color:#006600;color:#00aa00}
+#fb-status.err{background:#180000;border-color:#660000;color:#aa0000}
 </style>
 </head>
 <body>
-<div id="dbst">DB…</div>
-<div id="toast"></div>
-<div id="app">
-  <div id="sb">
-    <div class="sbh">
-      <h1>✈ FPL EDITOR</h1>
-      <a href="mcdu_a320.html" class="mlink" target="_blank">MCDU →</a>
-    </div>
-    <div class="tabs">
-      <button class="tab on" id="tab-fpl" onclick="tab('fpl')">FLIGHT PLAN</button>
-      <button class="tab" id="tab-db" onclick="tab('db')">DATABASE</button>
-      <button class="tab" id="tab-ap" onclick="tab('ap')">AIRPORTS</button>
-    </div>
-    <!-- DB stats strip -->
-    <div id="dbstats" style="display:flex;gap:0;border-bottom:1px solid #13132a;flex-shrink:0;">
-      <div class="dstat" id="ds-arpt" title="Airports">✈ <span>—</span></div>
-      <div class="dstat" id="ds-wpt"  title="Waypoints">◇ <span>—</span></div>
-      <div class="dstat" id="ds-ils"  title="ILS wpts">📡 <span>—</span></div>
-      <div class="dstat" id="ds-sid"  title="SID wpts">🛫 <span>—</span></div>
-    </div>
+<a href="fpl_editor.html" target="_blank" class="ed-link">✈ FPL EDITOR →</a>
+<div id="fb-status">DB: connecting…</div>
 
-    <!-- FLIGHT PLAN PANEL -->
-    <div class="panel on" id="panel-fpl">
-      <div class="sec">ORDERED ROUTE</div>
-      <div class="rctrl">
-        <button class="abtn am" style="margin:0" onclick="clearRoute()">✕ CLEAR</button>
-        <button class="sbtn" style="margin:0;font-size:10px" onclick="sendFB()">▲ SEND FPL</button>
-      </div>
-      <div class="list" id="fpl-list"></div>
-    </div>
+<div class="mcdu">
+  <!-- header -->
+  <div class="mcdu-header">
+    <div class="corner"></div>
+    <div class="leds"><div class="led"></div><div class="led"></div><div class="led"></div><div class="led"></div><div class="led"></div><div class="led"></div></div>
+    <div class="corner"></div>
+  </div>
 
-    <!-- DATABASE PANEL -->
-    <div class="panel" id="panel-db">
-      <div class="sec">ADD TO DATABASE</div>
-      <div class="tools">
-        <button class="tool on" id="t-wpt" onclick="setTool('wpt')"><span class="ic">◇</span>Waypoint</button>
-        <button class="tool" id="t-ils" onclick="setTool('ils')"><span class="ic">📡</span>ILS Waypoint</button>
-        <button class="tool" id="t-sid" onclick="setTool('sid')"><span class="ic">🛫</span>SID Waypoint</button>
+  <!-- screen + lsk -->
+  <div class="scr-wrap">
+    <div class="lsk-row">
+      <div class="lsk-col l">
+        <div class="lsk" onclick="L(1)"></div><div class="lsk" onclick="L(2)"></div>
+        <div class="lsk" onclick="L(3)"></div><div class="lsk" onclick="L(4)"></div>
+        <div class="lsk" onclick="L(5)"></div><div class="lsk" onclick="L(6)"></div>
       </div>
-      <!-- WPT form -->
-      <div class="form" id="f-wpt">
-        <div class="fg"><label>Name</label><input id="wn" maxlength="5" placeholder="BOTNE"></div>
-        <div class="fg"><label>Speed kt</label><input id="ws" type="number" placeholder="240"></div>
-        <div class="fg"><label>Alt ft</label><input id="wa" type="number" placeholder="7000"></div>
-        <div class="fg"><label>Time HHMM</label><input id="wt" maxlength="4" placeholder="0011"></div>
-        <p class="hint">→ Click map to place</p>
+      <div id="scr">
+        <div class="s-title" id="ST"></div>
+        <div class="s-rows" id="SR"></div>
+        <div class="spad" id="SP"></div>
       </div>
-      <!-- ILS form -->
-      <div class="form h" id="f-ils">
-        <div class="fg"><label>Name</label><input id="in" maxlength="5" placeholder="CF26L"></div>
-        <div class="fg"><label>Airport ICAO</label><input id="ia" maxlength="4" placeholder="LFRS"></div>
-        <div class="fg"><label>Runway</label><input id="ir" maxlength="4" placeholder="26L"></div>
-        <div class="fg"><label>Order (1=farthest)</label><input id="io" type="number" placeholder="1"></div>
-        <div class="fg"><label>Alt ft</label><input id="il" type="number" placeholder="3000"></div>
-        <p class="hint">→ Click map. ILS wpts auto-link to runway chain.</p>
+      <div class="lsk-col r">
+        <div class="lsk" onclick="R(1)"></div><div class="lsk" onclick="R(2)"></div>
+        <div class="lsk" onclick="R(3)"></div><div class="lsk" onclick="R(4)"></div>
+        <div class="lsk" onclick="R(5)"></div><div class="lsk" onclick="R(6)"></div>
       </div>
-      <!-- SID form -->
-      <div class="form h" id="f-sid">
-        <div class="fg"><label>Wpt Name</label><input id="sn" maxlength="5" placeholder="ATREX"></div>
-        <div class="fg"><label>Airport ICAO</label><input id="sa" maxlength="4" placeholder="LFRS"></div>
-        <div class="fg"><label>Runway</label><input id="sr" maxlength="4" placeholder="03"></div>
-        <div class="fg"><label>SID Name</label><input id="ss" maxlength="8" placeholder="ATREX2C"></div>
-        <div class="fg"><label>Order in SID</label><input id="so" type="number" placeholder="1"></div>
-        <div class="fg"><label>Speed kt</label><input id="sv" type="number" placeholder="250"></div>
-        <div class="fg"><label>Alt ft</label><input id="sl" type="number" placeholder="5000"></div>
-        <p class="hint">→ Click map. SIDs are grouped by name.</p>
-      </div>
-      <div class="sec">SAVED ITEMS · click to add to route</div>
-      <div class="srch"><input id="dbq" placeholder="Search wpts…" oninput="renderDB()"></div>
-      <div class="list" id="db-list"></div>
-    </div>
-
-    <!-- AIRPORTS PANEL -->
-    <div class="panel" id="panel-ap">
-      <div class="sec">ADD AIRPORTS & RUNWAYS</div>
-      <div class="tools">
-        <button class="tool on" id="t-arpt" onclick="setTool('arpt')"><span class="ic">🏢</span>Airport</button>
-        <button class="tool" id="t-rwy" onclick="setTool('rwy')"><span class="ic">✈</span>Runway (2 clicks)</button>
-      </div>
-      <div class="form" id="f-arpt">
-        <div class="fg"><label>ICAO</label><input id="ai" maxlength="4" placeholder="LFRS"></div>
-        <div class="fg"><label>Name</label><input id="an" placeholder="Nantes Atlantique"></div>
-        <div class="fg"><label>Elev ft</label><input id="ae" type="number" placeholder="90"></div>
-        <p class="hint">→ Click map to place airport</p>
-      </div>
-      <div class="form h" id="f-rwy">
-        <div class="fg"><label>RWY 1 (click 1)</label><input id="r1" maxlength="4" placeholder="21"></div>
-        <div class="fg"><label>RWY 2 (click 2)</label><input id="r2" maxlength="4" placeholder="03"></div>
-        <div class="fg"><label>Approach</label><select id="rt"><option>ILS</option><option>RNAV</option><option>VOR</option><option>VISUAL</option></select></div>
-        <div class="fg"><label>Airport ICAO</label><input id="ra" maxlength="4" placeholder="LFRS"></div>
-        <p class="hint" id="rwh">Click threshold of RWY 1 on map</p>
-        <button class="abtn am" id="rcnl" onclick="cancelRwy()" style="display:none">✕ CANCEL</button>
-      </div>
-      <div class="sec">AIRPORTS</div>
-      <div class="list" id="ap-list"></div>
     </div>
   </div>
 
-  <div id="mapwrap"><div id="map"></div></div>
+  <!-- func row 1 -->
+  <div class="fb-area">
+    <div class="fb-row">
+      <button class="fb" onclick="pg('DIR')">DIR</button>
+      <button class="fb" onclick="pg('PROG')">PROG</button>
+      <button class="fb" onclick="pg('PERF')">PERF</button>
+      <button class="fb" id="f-INIT" onclick="pg('INIT')">INIT</button>
+      <button class="fb" onclick="pg('DATA')">DATA</button>
+      <button class="fb dead"></button>
+      <button class="fb dead" style="font-size:8px">BRT</button>
+    </div>
+    <div class="fb-row">
+      <button class="fb" id="f-FPLN" onclick="pg('FPLN')">F-PLN</button>
+      <button class="fb" onclick="pg('RADNAV')">RAD<br>NAV</button>
+      <button class="fb" onclick="pg('FUEL')">FUEL<br>PRED</button>
+      <button class="fb" onclick="pg('SECFPLN')">SEC<br>F-PLN</button>
+      <button class="fb" onclick="pg('ATC')">ATC<br>COMM</button>
+      <button class="fb" id="f-MENU" onclick="pg('MENU')">MCDU<br>MENU</button>
+      <button class="fb dead" style="font-size:8px">DIM</button>
+    </div>
+  </div>
+
+  <!-- keyboard -->
+  <div class="kb">
+    <!-- nav block -->
+    <div class="nv">
+      <div class="nvr">
+        <button class="k kw" onclick="pg('AIRPORT')" style="font-size:8px">AIR<br>PORT</button>
+        <button class="k kw dead"></button>
+      </div>
+      <div class="nvr" style="margin-top:5px"><button class="k" onclick="kp('←')">←</button><button class="k" onclick="kp('↑')">↑</button></div>
+      <div class="nvr"><button class="k" onclick="kp('→')">→</button><button class="k" onclick="kp('↓')">↓</button></div>
+    </div>
+    <!-- alpha -->
+    <div class="ab">
+      <div class="ar"><button class="k" onclick="kp('A')">A</button><button class="k" onclick="kp('B')">B</button><button class="k" onclick="kp('C')">C</button><button class="k" onclick="kp('D')">D</button><button class="k kbd" onclick="kp('E')">E</button></div>
+      <div class="ar"><button class="k" onclick="kp('F')">F</button><button class="k" onclick="kp('G')">G</button><button class="k" onclick="kp('H')">H</button><button class="k" onclick="kp('I')">I</button><button class="k" onclick="kp('J')">J</button></div>
+      <div class="ar"><button class="k" onclick="kp('K')">K</button><button class="k" onclick="kp('L')">L</button><button class="k" onclick="kp('M')">M</button><button class="k kbd" onclick="kp('N')">N</button><button class="k" onclick="kp('O')">O</button></div>
+      <div class="ar"><button class="k" onclick="kp('P')">P</button><button class="k" onclick="kp('Q')">Q</button><button class="k" onclick="kp('R')">R</button><button class="k kbd" onclick="kp('S')">S</button><button class="k" onclick="kp('T')">T</button></div>
+      <div class="ar"><button class="k" onclick="kp('U')">U</button><button class="k" onclick="kp('V')">V</button><button class="k kbd" onclick="kp('W')">W</button><button class="k" onclick="kp('X')">X</button><button class="k" onclick="kp('Y')">Y</button></div>
+    </div>
+  </div>
+  <!-- nums + bottom -->
+  <div class="kb" style="align-items:flex-end;margin-top:2px">
+    <div class="nb">
+      <div class="nr"><button class="k" onclick="kp('1')">1</button><button class="k" onclick="kp('2')">2</button><button class="k" onclick="kp('3')">3</button></div>
+      <div class="nr"><button class="k" onclick="kp('4')">4</button><button class="k" onclick="kp('5')">5</button><button class="k" onclick="kp('6')">6</button></div>
+      <div class="nr"><button class="k" onclick="kp('7')">7</button><button class="k" onclick="kp('8')">8</button><button class="k" onclick="kp('9')">9</button></div>
+      <div class="nr"><button class="k" onclick="kp('0')">0</button><button class="k kww" onclick="kp('.')">+/-</button></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;margin-left:4px">
+      <div class="brow">
+        <button class="k" onclick="kp('Z')">Z</button>
+        <button class="k" onclick="kp('/')">/</button>
+        <button class="k kww" onclick="kp(' ')">SP</button>
+        <button class="k kww" onclick="kp('OVFY')" style="font-size:8px">OVFY<br>▲</button>
+        <button class="k kww" onclick="kp('CLR')">CLR</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-// ── Firebase ──────────────────────────────────
-firebase.initializeApp({
+// ══════════════════════════════════════════════
+//  FIREBASE
+// ══════════════════════════════════════════════
+const fbCfg = {
   apiKey:"AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
   authDomain:"kyky-c3471.firebaseapp.com",
   databaseURL:"https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId:"kyky-c3471",storageBucket:"kyky-c3471.firebasestorage.app",
-  messagingSenderId:"658643330578",appId:"1:658643330578:web:758dc26d5504a503e39acb"
-});
-const db=firebase.database();
-const fGet=p=>db.ref(p).once('value').then(s=>s.val());
-const fSet=(p,v)=>db.ref(p).set(v);
+  projectId:"kyky-c3471",
+  storageBucket:"kyky-c3471.firebasestorage.app",
+  messagingSenderId:"658643330578",
+  appId:"1:658643330578:web:758dc26d5504a503e39acb"
+};
+firebase.initializeApp(fbCfg);
+const db = firebase.database();
 
-db.ref('.info/connected').on('value',s=>{
-  const e=document.getElementById('dbst');
-  e.textContent=s.val()?'CONNECTED ✓':'OFFLINE';
-  e.className=s.val()?'ok':'err';
-});
+function fbGet(p)    { return db.ref(p).once('value').then(s=>s.val()); }
+function fbSet(p,v)  { return db.ref(p).set(v); }
+function fbDel(p)    { return db.ref(p).remove(); }
 
-// ── Map ───────────────────────────────────────
-const map=L.map('map',{center:[46.5,2.5],zoom:6});
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {attribution:'Esri',maxZoom:19}).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
-  {maxZoom:19,opacity:.55}).addTo(map);
-
-// ── State ─────────────────────────────────────
-let tool='wpt', rwyPts=[], route=[];
-let allW={}, allA={}, allI={}, allSids={};
-let layers={};   // key → leaflet layer refs
-let routeLine=null;
-
-// ── Tool helpers ──────────────────────────────
-const toolKeys=['wpt','ils','sid','arpt','rwy'];
-const formMap={wpt:'f-wpt',ils:'f-ils',sid:'f-sid',arpt:'f-arpt',rwy:'f-rwy'};
-
-function setTool(t){
-  tool=t; rwyPts=[];
-  document.getElementById('rwh').textContent='Click threshold of RWY 1 on map';
-  document.getElementById('rcnl').style.display='none';
-  toolKeys.forEach(k=>{
-    document.getElementById('t-'+k)?.classList.toggle('on',k===t);
-    const f=document.getElementById(formMap[k]);
-    if(f) f.className=k===t?'form':'form h';
-  });
-}
-function tab(t){
-  ['fpl','db','ap'].forEach(n=>{
-    document.getElementById('tab-'+n).classList.toggle('on',n===t);
-    document.getElementById('panel-'+n).classList.toggle('on',n===t);
-  });
-}
-
-// ── Map click ─────────────────────────────────
-map.on('click',e=>{
-  const{lat,lng:lon}=e.latlng;
-  if(tool==='wpt') placeWpt(lat,lon);
-  else if(tool==='ils') placeIls(lat,lon);
-  else if(tool==='sid') placeSid(lat,lon);
-  else if(tool==='arpt') placeArpt(lat,lon);
-  else if(tool==='rwy') rwyClick(lat,lon);
+db.ref('.info/connected').on('value', s=>{
+  const el=document.getElementById('fb-status');
+  if(s.val()){ el.textContent='DB: CONNECTED ✓'; el.className='ok'; }
+  else        { el.textContent='DB: OFFLINE';    el.className='err'; }
 });
 
-// ── Icons ─────────────────────────────────────
-function icon(t){
-  const h={
-    wpt:'<div style="width:11px;height:11px;border:2px solid #00e000;transform:rotate(45deg);background:transparent"></div>',
-    arpt:'<div style="width:15px;height:15px;background:#ff9800;border-radius:50%;border:2px solid #ffcc00;display:flex;align-items:center;justify-content:center;color:#000;font-size:7px;font-weight:bold">✈</div>',
-    ils:'<div style="width:10px;height:10px;border:2px solid #ff44ff;border-radius:50%;background:rgba(255,68,255,.15)"></div>',
-    sid:'<div style="width:10px;height:10px;border:2px solid #00ccff;border-radius:50%;background:rgba(0,200,255,.1)"></div>',
-    tmp:'<div style="width:9px;height:9px;background:#ffff00;border-radius:50%;border:1px solid #aaa"></div>'
-  };
-  const s={wpt:11,arpt:15,ils:10,sid:10,tmp:9};
-  const sz=s[t]||10;
-  return L.divIcon({html:h[t]||h.wpt,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''});
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const S = {
+  pg:'KY20', sp:'', err:'', clr:false,
+  flt:{nbr:'',dep_time:'',dep_arpt:'',arr_arpt:''},
+  route:[],         // [{name,type,lat,lon,spd,alt,time}]
+  depRwy:null, sid:null, arrRwy:null, ilsWpts:[],
+  fplnOff:0,
+  // page data
+  arrList:[], rwyList:[], sidList:[],
+};
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function title(t){document.getElementById('ST').textContent=t;}
+function rows(h){document.getElementById('SR').innerHTML=h;}
+function spad(){
+  const e=document.getElementById('SP');
+  if(S.err){
+    const c=S.err.startsWith('FORMAT')||S.err.startsWith('NOT')?'y':'a';
+    e.innerHTML=`<span class="${c}">${S.err}</span>`;
+  } else if(S.clr){
+    e.innerHTML=`<span class="w">CLR</span>`;
+  } else {
+    e.innerHTML=`<span class="w">${S.sp}</span>`;
+  }
 }
 
-function addLabel(lat,lon,text,color='#00e000'){
-  return L.marker([lat,lon],{
-    icon:L.divIcon({html:`<div style="color:${color};font-family:'Courier New';font-size:10px;font-weight:bold;white-space:nowrap;text-shadow:0 0 4px #000;padding-left:8px">${text}</div>`,
-    className:'',iconAnchor:[-2,8]})
-  }).addTo(map);
+function row(ll,lv,rl,rv,lc='g',rc='g'){
+  return `<div class="s-row">
+    <div class="sc"><div class="sl">${ll}</div><div class="sv ${lc}">${lv}</div></div>
+    <div class="sc r"><div class="sl">${rl}</div><div class="sv ${rc}">${rv}</div></div>
+  </div>`;
 }
 
-function addMk(id,lat,lon,type,tooltip){
-  removeMk(id);
-  const m=L.marker([lat,lon],{icon:icon(type)}).addTo(map);
-  if(tooltip) m.bindTooltip(
-    `<span style="font-family:'Courier New';font-size:11px;color:#00e000;background:#000;border:1px solid #1a1a2a;padding:2px 6px">${tooltip}</span>`,
-    {permanent:false,direction:'right',opacity:1}
+function render(){
+  document.querySelectorAll('.fb.on').forEach(b=>b.classList.remove('on'));
+  const m={'INIT':'f-INIT','FPLN':'f-FPLN','MENU':'f-MENU'};
+  if(m[S.pg]) document.getElementById(m[S.pg])?.classList.add('on');
+
+  const P={KY20,INIT,FPLN,ARRIVAL,DEPINFO,SIDSEL,MENU};
+  (P[S.pg]||genericPg)();
+  spad();
+}
+
+// ══════════════════════════════════════════════
+//  PAGES
+// ══════════════════════════════════════════════
+function KY20(){
+  title('KY-20');
+  rows(
+    row('','','','')+
+    row('ACTIVE NAV DATABASE','<span class="c">Kyky-0001DB</span>','','')+
+    row('','','','')+
+    row('','','','')+
+    row('','','','')+
+    row('','','SOFTWARE','<span class="a">*RESET &gt;</span>','w','a')
   );
-  layers[id]={m};
-}
-function removeMk(id){
-  if(!layers[id]) return;
-  if(layers[id].m) map.removeLayer(layers[id].m);
-  if(layers[id].l) map.removeLayer(layers[id].l);
-  if(layers[id].lbl) map.removeLayer(layers[id].lbl);
-  delete layers[id];
 }
 
-// ── Placing items ─────────────────────────────
-async function placeWpt(lat,lon){
-  const name=(document.getElementById('wn').value||'WPT').toUpperCase().trim();
-  const spd=document.getElementById('ws').value||'';
-  const alt=document.getElementById('wa').value||'';
-  const time=document.getElementById('wt').value||'';
-  const obj={name,lat,lon,spd,alt,time,type:'wpt'};
-  await fSet('wpts/'+name,obj);
-  allW[name]=obj;
-  addMk('w_'+name,lat,lon,'wpt',`${name} ${spd?spd+'kt ':''}${alt?alt+'ft':''}`);
-  const lbl=addLabel(lat,lon,name,'#00e000');
-  layers['w_'+name].lbl=lbl;
-  toast('WPT: '+name); renderDB();
+function INIT(){
+  title('INIT');
+  const f=S.flt;
+  const nbr  = f.nbr      ? `<span class="c">${f.nbr}</span>`        : `<span class="a">——</span>`;
+  const dep  = f.dep_time  ? `<span class="c">${f.dep_time}</span>`   : `<span class="a">——Z</span>`;
+  const from = (f.dep_arpt||f.arr_arpt)
+    ? `<span class="c">${f.dep_arpt||'??'}/${f.arr_arpt||'??'}</span>`
+    : `<span class="a">——/——</span>`;
+  rows(
+    row('FLT NBR',nbr,'FROM/TO',from,'w','w')+
+    row('DEP TIME',dep,'','','w','')+
+    row('','','','')+
+    row('','','<span class="a">*INIT REQUEST &gt;</span>','','','a')+
+    row('','','','')+
+    row('','','','')+
+    `<div style="font-size:8px;color:#444;text-align:center;padding:2px">LSK1L=FLTNBR · LSK1R=DEP/ARR · LSK2L=DEPTIME · LSK4R=INIT REQ</div>`
+  );
 }
 
-async function placeIls(lat,lon){
-  const name=(document.getElementById('in').value||'ILS').toUpperCase().trim();
-  const arpt=(document.getElementById('ia').value||'ARPT').toUpperCase().trim();
-  const rwy=(document.getElementById('ir').value||'XX').toUpperCase().trim();
-  const order=+document.getElementById('io').value||1;
-  const alt=document.getElementById('il').value||'';
-  const obj={name,lat,lon,arpt,rwy,order,alt,type:'ils'};
-  await fSet(`arpt/${arpt}/ils/${rwy}/${name}`,obj);
-  const uid=`${arpt}_${rwy}_${name}`;
-  allI[uid]={...obj};
-  addMk('i_'+uid,lat,lon,'ils',`ILS ${name} [${arpt} RWY${rwy}]`);
-  const lbl=addLabel(lat,lon,name,'#ff44ff');
-  layers['i_'+uid].lbl=lbl;
-  drawIlsChains(); toast('ILS WPT: '+name); renderDB();
-}
-
-async function placeSid(lat,lon){
-  const name=(document.getElementById('sn').value||'WPT').toUpperCase().trim();
-  const arpt=(document.getElementById('sa').value||'ARPT').toUpperCase().trim();
-  const rwy=(document.getElementById('sr').value||'XX').toUpperCase().trim();
-  const sid=(document.getElementById('ss').value||'SID').toUpperCase().trim();
-  const order=+document.getElementById('so').value||1;
-  const spd=document.getElementById('sv').value||'';
-  const alt=document.getElementById('sl').value||'';
-  const obj={name,lat,lon,arpt,rwy,sid,order,spd,alt,type:'sid'};
-  await fSet(`arpt/${arpt}/sid/${rwy}/${sid}/${name}`,obj);
-  const uid=`${arpt}_${rwy}_${sid}_${name}`;
-  allSids[uid]={...obj};
-  addMk('s_'+uid,lat,lon,'sid',`SID ${sid}: ${name}`);
-  const lbl=addLabel(lat,lon,name,'#00ccff');
-  layers['s_'+uid].lbl=lbl;
-  drawSidChains(); toast('SID WPT: '+name); renderDB();
-}
-
-async function placeArpt(lat,lon){
-  const icao=(document.getElementById('ai').value||'ARPT').toUpperCase().trim();
-  const name=document.getElementById('an').value||icao;
-  const elev=document.getElementById('ae').value||'0';
-  const obj={icao,name,lat,lon,elev,type:'arpt'};
-  await fSet('arpt/'+icao,{icao,name,lat,lon,elev});
-  allA[icao]={...obj};
-  addMk('a_'+icao,lat,lon,'arpt',`${icao} - ${name}`);
-  const lbl=addLabel(lat,lon,icao,'#ff9800');
-  layers['a_'+icao].lbl=lbl;
-  toast('AIRPORT: '+icao); renderApList();
-}
-
-// ── Runway drawing ─────────────────────────────
-function rwyClick(lat,lon){
-  rwyPts.push({lat,lon});
-  if(rwyPts.length===1){
-    addMk('rwytmp',lat,lon,'tmp','RWY threshold 1');
-    document.getElementById('rwh').textContent='Now click threshold of RWY 2';
-    document.getElementById('rcnl').style.display='block';
-  } else if(rwyPts.length===2){
-    finishRwy();
-  }
-}
-async function finishRwy(){
-  const[p1,p2]=rwyPts;
-  const id1=(document.getElementById('r1').value||'XX').toUpperCase().trim();
-  const id2=(document.getElementById('r2').value||'XX').toUpperCase().trim();
-  const apType=document.getElementById('rt').value;
-  const arpt=(document.getElementById('ra').value||'ARPT').toUpperCase().trim();
-  const r1={id:id1,lat:p1.lat,lon:p1.lon,lat2:p2.lat,lon2:p2.lon,type:apType,arpt};
-  const r2={id:id2,lat:p2.lat,lon:p2.lon,lat2:p1.lat,lon2:p1.lon,type:apType,arpt};
-  await fSet(`arpt/${arpt}/runways/${id1}`,r1);
-  await fSet(`arpt/${arpt}/runways/${id2}`,r2);
-  // Draw on map
-  L.polyline([[p1.lat,p1.lon],[p2.lat,p2.lon]],{color:'#999',weight:4,opacity:.85}).addTo(map);
-  const dl=p2.lat-p1.lat,dn=p2.lon-p1.lon,len=Math.hypot(dl,dn);
-  if(len>0){
-    const e=0.04;
-    L.polyline([[p2.lat,p2.lon],[p2.lat+dl/len*e,p2.lon+dn/len*e]],
-      {color:'#fff',weight:1,dashArray:'4,4',opacity:.3}).addTo(map);
-  }
-  addLabel(p1.lat,p1.lon,'RWY'+id1,'#ff9800');
-  addLabel(p2.lat,p2.lon,'RWY'+id2,'#ff9800');
-  removeMk('rwytmp');
-  if(allA[arpt]){allA[arpt].runways=allA[arpt].runways||{};allA[arpt].runways[id1]=r1;allA[arpt].runways[id2]=r2;}
-  rwyPts=[];
-  document.getElementById('rwh').textContent='Click threshold of RWY 1 on map';
-  document.getElementById('rcnl').style.display='none';
-  toast(`RWY${id1}/${id2} SAVED`); renderApList();
-}
-function cancelRwy(){
-  rwyPts=[]; removeMk('rwytmp');
-  document.getElementById('rwh').textContent='Click threshold of RWY 1 on map';
-  document.getElementById('rcnl').style.display='none';
-}
-
-// ── Chain drawing ─────────────────────────────
-function drawIlsChains(){
-  // Group by arpt+rwy
-  const G={};
-  Object.values(allI).forEach(w=>{
-    const k=w.arpt+'_'+w.rwy;
-    (G[k]=G[k]||[]).push(w);
-  });
-  // Remove old ils chain layers
-  Object.keys(layers).filter(k=>k.startsWith('ilschain_')).forEach(k=>{
-    if(layers[k]?.l) map.removeLayer(layers[k].l);
-    delete layers[k];
-  });
-  Object.entries(G).forEach(([k,wpts])=>{
-    const s=wpts.sort((a,b)=>(a.order||0)-(b.order||0));
-    const pts=s.map(w=>[w.lat,w.lon]);
-    // Extend to airport if known
-    const ap=Object.values(allA).find(a=>a.icao===s[0].arpt);
-    if(ap) pts.push([ap.lat,ap.lon]);
-    if(pts.length>1){
-      const l=L.polyline(pts,{color:'#ff44ff',weight:1.5,opacity:.75}).addTo(map);
-      layers['ilschain_'+k]={l};
-    }
-  });
-}
-
-function drawSidChains(){
-  const G={};
-  Object.values(allSids).forEach(w=>{
-    const k=w.arpt+'_'+w.rwy+'_'+w.sid;
-    (G[k]=G[k]||[]).push(w);
-  });
-  Object.keys(layers).filter(k=>k.startsWith('sidchain_')).forEach(k=>{
-    if(layers[k]?.l) map.removeLayer(layers[k].l);
-    delete layers[k];
-  });
-  Object.entries(G).forEach(([k,wpts])=>{
-    const s=wpts.sort((a,b)=>(a.order||0)-(b.order||0));
-    const pts=s.map(w=>[w.lat,w.lon]);
-    if(pts.length>1){
-      const l=L.polyline(pts,{color:'#00ccff',weight:1.5,dashArray:'4,4',opacity:.7}).addTo(map);
-      layers['sidchain_'+k]={l};
-    }
-  });
-}
-
-function drawRoute(){
-  if(routeLine){map.removeLayer(routeLine);routeLine=null;}
-  const pts=route.filter(r=>r.lat!=null&&r.lon!=null).map(r=>[r.lat,r.lon]);
-  if(pts.length>1) routeLine=L.polyline(pts,{color:'#ff44ff',weight:2,dashArray:'6,4',opacity:.8}).addTo(map);
-}
-
-// ── Route management ──────────────────────────
-function addToRoute(item){
-  if(route.find(r=>r.name===item.name&&r.type===item.type)){toast('Already in route','am');return;}
-  route.push({...item}); drawRoute(); renderFPL(); renderDB();
-  toast('+ '+item.name);
-}
-function addSIDGroup(wpts){
-  wpts.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(w=>{
-    if(!route.find(r=>r.name===w.name&&r.type==='sid')) route.push({...w});
-  });
-  drawRoute(); renderFPL(); renderDB(); toast(`SID: ${wpts.length}wpt`);
-}
-function removeFromRoute(i){route.splice(i,1);drawRoute();renderFPL();}
-function clearRoute(){if(!confirm('Clear route?'))return;route=[];drawRoute();renderFPL();toast('CLEARED');}
-
-// ── Render lists ──────────────────────────────
-function renderFPL(){
-  const el=document.getElementById('fpl-list');
-  if(!route.length){
-    el.innerHTML='<div style="color:#334;font-size:11px;text-align:center;padding:18px">Route empty.<br>Add from DATABASE tab.</div>';
+function FPLN(){
+  title('F-PLN');
+  const rt=S.route;
+  if(!rt.length){
+    rows(row('','','','')+row('','','','')+
+      `<div class="s-row" style="justify-content:center"><span class="sv dim" style="font-size:15px;opacity:.4">EMPTY</span></div>`+
+      row('','','','')+row('','','','')+row('','','',''));
     return;
   }
-  el.innerHTML=route.map((it,i)=>{
-    const c=it.type==='arpt'?'dep':it.type==='ils'?'ils':it.type==='sid'?'sid':'';
-    const nc=it.type==='arpt'?'#ff9800':it.type==='ils'?'#ff44ff':it.type==='sid'?'#00ccff':'#00e000';
-    const info=(it.spd||it.alt)?`${it.spd||'---'}/${it.alt||'-----'}`:'';
-    return `<div class="li ${c}"><span class="ln">${i+1}</span>
-      <span class="lname" style="color:${nc}">${it.name}</span>
-      <span class="linfo">${info}</span>
-      <span class="ldel" onclick="removeFromRoute(${i})">×</span></div>`;
-  }).join('');
-}
-
-function renderDB(){
-  const q=(document.getElementById('dbq')?.value||'').toUpperCase().trim();
-  const el=document.getElementById('db-list');
-  let h='';
-
-  // Airports
-  Object.values(allA).filter(a=>!q||a.icao.includes(q)||(a.name||'').toUpperCase().includes(q)).forEach(a=>{
-    const inR=route.find(r=>r.name===a.icao&&r.type==='arpt');
-    const item={...a,name:a.icao};
-    h+=`<div class="li dep ${inR?'in':''}" ${!inR?`onclick='addToRoute(${JSON.stringify(item)})'`:''}>
-      <span class="lname" style="color:#ff9800">✈ ${a.icao}</span>
-      <span class="linfo">${a.name||''}</span>${!inR?'<span class="ladd">+</span>':''}
+  let h=`<div class="s-row" style="min-height:14px">
+    <div class="sc"><div class="sl">FROM &nbsp;&nbsp;&nbsp; TIME</div></div>
+    <div class="sc r"><div class="sl">SPD / ALT</div></div>
+  </div>`;
+  const vis=rt.slice(S.fplnOff,S.fplnOff+5);
+  vis.forEach((it,i)=>{
+    const idx=S.fplnOff+i;
+    const c=it.type==='arpt'?'a':it.type==='ils'?'m':it.type==='sid'?'c':'g';
+    h+=`<div class="s-row" onclick="fplnClick(${idx})" style="cursor:pointer">
+      <div class="sc"><div class="sv ${c}" style="font-size:12px">${it.name}</div></div>
+      <div class="sc r"><div class="sv g" style="font-size:11px">${it.time||'----'}&nbsp;${it.spd||'---'}/${it.alt||'-----'}</div></div>
     </div>`;
   });
-
-  // Wpts
-  Object.values(allW).filter(w=>!q||w.name.includes(q)).forEach(w=>{
-    const inR=route.find(r=>r.name===w.name&&r.type==='wpt');
-    h+=`<div class="li ${inR?'in':''}" ${!inR?`onclick='addToRoute(${JSON.stringify(w)})'`:''}>
-      <span class="lname">◇ ${w.name}</span>
-      <span class="linfo">${w.spd?w.spd+'kt ':''} ${w.alt?w.alt+'ft':''}</span>${!inR?'<span class="ladd">+</span>':''}
-    </div>`;
-  });
-
-  // ILS wpts
-  Object.values(allI).filter(w=>!q||w.name.includes(q)||(w.arpt||'').includes(q)).forEach(w=>{
-    const inR=route.find(r=>r.name===w.name&&r.type==='ils');
-    h+=`<div class="li ils ${inR?'in':''}" ${!inR?`onclick='addToRoute(${JSON.stringify(w)})'`:''}>
-      <span class="lname" style="color:#ff44ff">📡 ${w.name}</span>
-      <span class="linfo">${w.arpt||''} R${w.rwy||''} #${w.order||1}</span>${!inR?'<span class="ladd" style="color:#ff44ff">+</span>':''}
-    </div>`;
-  });
-
-  // SID groups
-  const G={};
-  Object.values(allSids).forEach(w=>{const k=w.sid+'|'+w.arpt+'|'+w.rwy;(G[k]=G[k]||[]).push(w);});
-  Object.entries(G).filter(([k])=>!q||k.toUpperCase().includes(q)).forEach(([k,wpts])=>{
-    const s=wpts[0];
-    const wArr=JSON.stringify(wpts);
-    h+=`<div class="li sid" onclick='addSIDGroup(${wArr})'>
-      <span class="lname" style="color:#00ccff">🛫 ${s.sid}</span>
-      <span class="linfo">${s.arpt} R${s.rwy} · ${wpts.length}wpt</span>
-      <span class="ladd" style="color:#00ccff">+</span>
-    </div>`;
-  });
-
-  el.innerHTML=h||'<div style="color:#334;font-size:11px;text-align:center;padding:16px">Nothing yet. Use tools above.</div>';
+  for(let i=vis.length;i<5;i++) h+=`<div class="s-row"></div>`;
+  const arrn=S.flt.arr_arpt||'----';
+  h+=`<div class="s-row" onclick="openArr()" style="cursor:pointer">
+    <div class="sc"><div class="sv a" style="font-size:12px">${arrn} &gt;</div></div>
+    <div class="sc r"><div class="sv dim" style="font-size:10px">${S.arrRwy?'ILS'+S.arrRwy:''}</div></div>
+  </div>`;
+  rows(h);
 }
 
-function renderApList(){
-  const el=document.getElementById('ap-list');
-  const ap=Object.values(allA);
-  if(!ap.length){el.innerHTML='<div style="color:#334;font-size:11px;text-align:center;padding:16px">No airports.</div>';return;}
-  el.innerHTML=ap.map(a=>{
-    const rw=a.runways?Object.keys(a.runways).join(' '):'—';
-    return `<div class="li dep">
-      <span class="lname" style="color:#ff9800">${a.icao}</span>
-      <span class="linfo">${a.name||''} · ${rw}</span>
-    </div>`;
-  }).join('');
-}
-
-// ── Send to Firebase ──────────────────────────
-async function sendFB(){
-  if(!route.length){toast('Route empty!','am');return;}
-  const dep=route.find(r=>r.type==='arpt');
-  const arr=[...route].reverse().find(r=>r.type==='arpt');
-  await fSet('flt',{
-    flt_nbr:'',dep_time:'',
-    dep_arpt:dep?.icao||dep?.name||'',
-    arr_arpt:arr?.icao||arr?.name||'',
-    route:Object.fromEntries(route.map((r,i)=>[i+1,r]))
-  });
-  toast('FPL SENT ✓');
-}
-
-// ── Toast ─────────────────────────────────────
-function toast(msg,t=''){
-  const e=document.getElementById('toast');
-  e.textContent=msg; e.className=(t?t+' ':'')+'show';
-  clearTimeout(window._tt);
-  window._tt=setTimeout(()=>e.className=t,2500);
-}
-
-// ── Loading overlay ───────────────────────────
-function showLoader(msg){
-  let el=document.getElementById('loader');
-  if(!el){
-    el=document.createElement('div');el.id='loader';
-    el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Courier New,monospace;gap:12px;';
-    document.body.appendChild(el);
+function ARRIVAL(){
+  const arr=S.flt.arr_arpt||'----';
+  title(`${arr} ARRIVAL`);
+  const list=S.arrList;
+  let h=`<div class="s-row"><div class="sc r" style="width:100%"><div class="sl">RWY &nbsp; TYPE</div></div></div>`;
+  if(!list.length){
+    h+=`<div class="s-row" style="justify-content:center"><span class="sv dim">NO RUNWAYS</span></div>`;
+    h+=row('','','','')+row('','','','')+row('','','','');
+  } else {
+    list.slice(0,4).forEach(r=>{
+      const sel=S.arrRwy===r.id;
+      h+=`<div class="s-row" onclick="selArrRwy('${r.id}')" style="cursor:pointer">
+        <div class="sc"><div class="sv dim" style="font-size:10px">${r.type||'ILS'}</div></div>
+        <div class="sc r"><div class="sv ${sel?'g':'a'}">RWY${r.id}</div></div>
+      </div>`;
+    });
+    for(let i=list.length;i<4;i++) h+=`<div class="s-row"></div>`;
   }
-  el.innerHTML=`
-    <div style="color:#00e000;font-size:13px;letter-spacing:2px;">${msg}</div>
-    <div id="lbar" style="width:220px;height:3px;background:#0a1a0a;border-radius:2px;overflow:hidden;">
-      <div id="lprog" style="height:100%;background:#00e000;width:0%;transition:width .3s;"></div>
-    </div>
-    <div id="lsub" style="color:#334;font-size:10px;letter-spacing:1px;"></div>`;
-}
-function setLoaderProg(pct,sub){
-  const p=document.getElementById('lprog');
-  const s=document.getElementById('lsub');
-  if(p) p.style.width=pct+'%';
-  if(s&&sub) s.textContent=sub;
-}
-function hideLoader(){
-  const el=document.getElementById('loader');
-  if(el){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),350);}
+  h+=`<div class="s-row" onclick="pg('FPLN')" style="cursor:pointer">
+    <div class="sc"><div class="sv w">&lt; RETURN</div></div>
+  </div>`;
+  rows(h);
 }
 
-// ── Load ALL from Firebase on startup ─────────
-async function loadAll(){
-  showLoader('LOADING DATABASE…');
-  let wptCount=0,arptCount=0,ilsCount=0,sidCount=0,rwyCount=0;
-  try{
+function DEPINFO(){
+  const dep=S.flt.dep_arpt||'----';
+  title(`${dep} DEPARTURE`);
+  const list=S.rwyList;
+  let h=`<div class="s-row"><div class="sc r" style="width:100%"><div class="sl">SELECT RUNWAY</div></div></div>`;
+  if(!list.length){
+    h+=`<div class="s-row" style="justify-content:center"><span class="sv dim">NO RUNWAYS</span></div>`;
+    h+=row('','','','')+row('','','','')+row('','','','');
+  } else {
+    list.slice(0,4).forEach(r=>{
+      const sel=S.depRwy===r.id;
+      h+=`<div class="s-row" onclick="selDepRwy('${r.id}')" style="cursor:pointer">
+        <div class="sc"><div class="sv dim" style="font-size:10px">SID &gt;</div></div>
+        <div class="sc r"><div class="sv ${sel?'g':'a'}">RWY${r.id}</div></div>
+      </div>`;
+    });
+    for(let i=list.length;i<4;i++) h+=`<div class="s-row"></div>`;
+  }
+  h+=`<div class="s-row" onclick="pg('FPLN')" style="cursor:pointer">
+    <div class="sc"><div class="sv w">&lt; RETURN</div></div>
+  </div>`;
+  rows(h);
+}
 
-    /* ── 1. Standalone waypoints (wpts/) ── */
-    setLoaderProg(5,'Loading waypoints…');
-    const wData=await fGet('wpts');
-    if(wData && typeof wData==='object'){
-      Object.entries(wData).forEach(([k,v])=>{
-        if(!v||v.lat==null) return;
-        const obj={...v,name:k,type:'wpt'};
-        allW[k]=obj;
-        addMk('w_'+k,v.lat,v.lon,'wpt',`${k}${v.spd?' '+v.spd+'kt':''}${v.alt?' '+v.alt+'ft':''}`);
-        const lbl=addLabel(v.lat,v.lon,k,'#00e000');
-        layers['w_'+k].lbl=lbl;
-        wptCount++;
-      });
-    }
-    setLoaderProg(20,`${wptCount} waypoints`);
+function SIDSEL(){
+  title(`SID · RWY${S.depRwy}`);
+  const list=S.sidList;
+  let h=`<div class="s-row"><div class="sc"><div class="sl">SID NAME</div></div><div class="sc r"><div class="sl">WPT</div></div></div>`;
+  if(!list.length){
+    h+=`<div class="s-row" style="justify-content:center"><span class="sv dim">NO SID</span></div>`;
+    h+=row('','','','')+row('','','','')+row('','','','');
+  } else {
+    list.slice(0,4).forEach(s=>{
+      const sel=S.sid&&S.sid.name===s.name;
+      h+=`<div class="s-row" onclick="selSID('${s.name}')" style="cursor:pointer">
+        <div class="sc"><div class="sv ${sel?'g':'a'}">${s.name}</div></div>
+        <div class="sc r"><div class="sv dim" style="font-size:10px">${s.wpts?Object.keys(s.wpts).length:0} WPT</div></div>
+      </div>`;
+    });
+    for(let i=list.length;i<4;i++) h+=`<div class="s-row"></div>`;
+  }
+  h+=`<div class="s-row" onclick="pg('DEPINFO')" style="cursor:pointer">
+    <div class="sc"><div class="sv w">&lt; RETURN</div></div>
+  </div>`;
+  rows(h);
+}
 
-    /* ── 2. Airports + runways + ILS + SIDs (arpt/) ── */
-    setLoaderProg(25,'Loading airports…');
-    const aData=await fGet('arpt');
-    if(aData && typeof aData==='object'){
-      const icaoList=Object.keys(aData);
-      const step=50/Math.max(icaoList.length,1);
-      for(let i=0;i<icaoList.length;i++){
-        const icao=icaoList[i];
-        const d=aData[icao];
-        if(!d||typeof d!=='object') continue;
-        setLoaderProg(25+i*step,`Airport ${icao}`);
+function MENU(){
+  title('MCDU MENU');
+  rows(
+    row('','<span class="c">FMGC</span>','','','w','')+
+    row('','','<span class="a">FPL EDITOR &gt;</span>','','','a')+
+    row('','','','')+row('','','','')+row('','','','')+
+    row('<span class="w">&lt; RETURN</span>','','','','w','')
+  );
+}
 
-        /* Airport marker */
-        allA[icao]={...d,icao,type:'arpt'};
-        if(d.lat!=null&&d.lon!=null){
-          addMk('a_'+icao,d.lat,d.lon,'arpt',`${icao}${d.name?' – '+d.name:''}`);
-          const lbl=addLabel(d.lat,d.lon,icao,'#ff9800');
-          layers['a_'+icao].lbl=lbl;
-          arptCount++;
-        }
+function genericPg(){
+  title(S.pg);
+  rows(`<div class="s-row" style="justify-content:center;flex:1"><span class="sv dim" style="font-size:11px;padding:30px">PAGE INDISP.</span></div>`);
+}
 
-        /* Runways */
-        if(d.runways && typeof d.runways==='object'){
-          const drawn=new Set();
-          Object.values(d.runways).forEach(r=>{
-            if(!r||r.lat==null||r.lat2==null) return;
-            const pk=`${r.lat}_${r.lon}_${r.lat2}_${r.lon2}`;
-            if(drawn.has(pk)) return;
-            drawn.add(pk);
-            L.polyline([[r.lat,r.lon],[r.lat2,r.lon2]],
-              {color:'#999',weight:4,opacity:.85}).addTo(map);
-            /* extended centerline */
-            const dl=r.lat2-r.lat,dn=r.lon2-r.lon,len=Math.hypot(dl,dn);
-            if(len>0){
-              const e=0.04;
-              L.polyline([[r.lat2,r.lon2],[r.lat2+dl/len*e,r.lon2+dn/len*e]],
-                {color:'rgba(255,255,255,.2)',weight:1,dashArray:'5,6'}).addTo(map);
-            }
-            addLabel(r.lat,r.lon,'RWY'+r.id,'#ff9800');
-            addLabel(r.lat2,r.lon2,'RWY'+r.lat2id,'#ff9800'); // harmless if undefined
-            rwyCount++;
-          });
-        }
+// ══════════════════════════════════════════════
+//  LSK
+// ══════════════════════════════════════════════
+function L(n){ lsk(n,'L'); }
+function R(n){ lsk(n,'R'); }
 
-        /* ILS waypoints (arpt/ICAO/ils/RWY/NAME) */
-        if(d.ils && typeof d.ils==='object'){
-          Object.entries(d.ils).forEach(([rwy,rwd])=>{
-            if(!rwd||typeof rwd!=='object') return;
-            Object.entries(rwd).forEach(([wname,wv])=>{
-              if(!wv||wv.lat==null) return;
-              const uid=`${icao}_${rwy}_${wname}`;
-              allI[uid]={...wv,name:wname,arpt:icao,rwy,order:wv.order||1,type:'ils'};
-              addMk('i_'+uid,wv.lat,wv.lon,'ils',
-                `ILS ${wname} · ${icao} RWY${rwy} · #${wv.order||1}${wv.alt?' · '+wv.alt+'ft':''}`);
-              const lbl=addLabel(wv.lat,wv.lon,wname,'#ff44ff');
-              layers['i_'+uid].lbl=lbl;
-              ilsCount++;
-            });
-          });
-        }
+function lsk(n,side){
+  const sp=S.sp.trim().toUpperCase();
+  const clr=S.clr;
 
-        /* SID waypoints (arpt/ICAO/sid/RWY/SIDNAME/WPTNAME) */
-        if(d.sid && typeof d.sid==='object'){
-          Object.entries(d.sid).forEach(([rwy,rwData])=>{
-            if(!rwData||typeof rwData!=='object') return;
-            Object.entries(rwData).forEach(([sidName,swpts])=>{
-              if(!swpts||typeof swpts!=='object') return;
-              Object.entries(swpts).forEach(([wname,wv])=>{
-                if(!wv||wv.lat==null) return;
-                const uid=`${icao}_${rwy}_${sidName}_${wname}`;
-                allSids[uid]={...wv,name:wname,arpt:icao,rwy,sid:sidName,
-                              order:wv.order||1,type:'sid'};
-                addMk('s_'+uid,wv.lat,wv.lon,'sid',
-                  `SID ${sidName}: ${wname} · ${icao} RWY${rwy} · #${wv.order||1}`);
-                const lbl=addLabel(wv.lat,wv.lon,wname,'#00ccff');
-                layers['s_'+uid].lbl=lbl;
-                sidCount++;
-              });
-            });
-          });
-        }
+  if(S.pg==='KY20'){
+    if(n===6&&side==='R') doReset();
+  }
+  else if(S.pg==='INIT'){
+    if(n===1&&side==='L'){ if(sp){S.flt.nbr=sp;clearSP();} }
+    else if(n===1&&side==='R'){
+      if(sp){
+        if(!sp.includes('/')){setErr('FORMAT ERROR');return;}
+        const [d,a]=sp.split('/');
+        S.flt.dep_arpt=d.toUpperCase(); S.flt.arr_arpt=a.toUpperCase();
+        clearSP();
       }
     }
-
-    /* ── 3. Standalone sids/ collection (alternative storage) ── */
-    setLoaderProg(78,'Loading SIDs collection…');
-    const sData=await fGet('sids');
-    if(sData && typeof sData==='object'){
-      Object.entries(sData).forEach(([key,sid])=>{
-        if(!sid||!sid.wpts) return;
-        const wpts=Array.isArray(sid.wpts)?sid.wpts:Object.values(sid.wpts);
-        wpts.forEach(wv=>{
-          if(!wv||wv.lat==null) return;
-          const uid=`${sid.arpt}_${sid.rwy}_${sid.name}_${wv.name}`;
-          if(allSids[uid]) return; // already loaded from arpt/ tree
-          allSids[uid]={...wv,arpt:sid.arpt,rwy:sid.rwy,sid:sid.name,type:'sid'};
-          addMk('s_'+uid,wv.lat,wv.lon,'sid',
-            `SID ${sid.name}: ${wv.name} · ${sid.arpt} RWY${sid.rwy}`);
-          const lbl=addLabel(wv.lat,wv.lon,wv.name,'#00ccff');
-          layers['s_'+uid].lbl=lbl;
-          sidCount++;
-        });
-      });
+    else if(n===2&&side==='L'){
+      if(sp){
+        if(!/^\d{1,4}$/.test(sp)){setErr('FORMAT ERROR');return;}
+        S.flt.dep_time=sp.padStart(4,'0')+'Z'; clearSP();
+      }
     }
-
-    /* ── 4. Draw chains ── */
-    setLoaderProg(90,'Drawing approach chains…');
-    drawIlsChains();
-    drawSidChains();
-
-    /* ── 5. Render sidebar ── */
-    setLoaderProg(98,'Rendering…');
-    renderDB(); renderApList();
-
-    /* ── 6. Update stats strip ── */
-    document.querySelector('#ds-arpt span').textContent = arptCount;
-    document.querySelector('#ds-wpt span').textContent  = wptCount;
-    document.querySelector('#ds-ils span').textContent  = ilsCount;
-    document.querySelector('#ds-sid span').textContent  = sidCount;
-
-    setLoaderProg(100,'Done');
-    setTimeout(hideLoader,400);
-    toast(`✓ ${arptCount} arpt · ${rwyCount/2|0} rwy · ${wptCount} wpt · ${ilsCount} ILS · ${sidCount} SID wpt`);
-
-  }catch(e){
-    console.error(e);
-    hideLoader();
-    toast('LOAD ERROR: '+e.message,'am');
+    else if(n===4&&side==='R') doInitReq();
   }
+  else if(S.pg==='FPLN'){
+    if(n===6&&side==='L'){openArr();return;}
+    if(n===1&&side==='L'&&S.route[0]?.type==='arpt'){openDep();return;}
+    // CLR on wpt rows 1-5
+    const idx=S.fplnOff+(n-1);
+    if(clr && n>=1 && n<=5 && S.route[idx]){
+      S.route.splice(idx,1); S.clr=false; syncActive();
+    }
+  }
+  else if(S.pg==='ARRIVAL'){
+    if(n===6&&side==='L'){pg('FPLN');return;}
+    const ri=n-2;
+    if(ri>=0&&ri<S.arrList.length) selArrRwy(S.arrList[ri].id);
+  }
+  else if(S.pg==='DEPINFO'){
+    if(n===6&&side==='L'){pg('FPLN');return;}
+    const ri=n-2;
+    if(ri>=0&&ri<S.rwyList.length) selDepRwy(S.rwyList[ri].id);
+  }
+  else if(S.pg==='SIDSEL'){
+    if(n===6&&side==='L'){pg('DEPINFO');return;}
+    const ri=n-2;
+    if(ri>=0&&ri<S.sidList.length) selSID(S.sidList[ri].name);
+  }
+  else if(S.pg==='MENU'){
+    if(n===6&&side==='L') pg('INIT');
+    if(n===2&&side==='R') window.open('fpl_editor.html','_blank');
+  }
+  render();
 }
 
-setTool('wpt'); renderFPL(); loadAll();
+// ══════════════════════════════════════════════
+//  KEY INPUT
+// ══════════════════════════════════════════════
+function kp(k){
+  S.err='';
+  if(k==='CLR'){
+    if(S.clr) S.clr=false;
+    else if(S.sp.length>0) S.sp=S.sp.slice(0,-1);
+    else S.clr=true;
+  } else if(k==='↑'){
+    if(S.pg==='FPLN'&&S.fplnOff>0) S.fplnOff--;
+  } else if(k==='↓'){
+    if(S.pg==='FPLN') S.fplnOff=Math.min(S.fplnOff+1,Math.max(0,S.route.length-2));
+  } else if(k==='OVFY'||k==='←'||k==='→'){
+    // intentional no-op
+  } else {
+    S.clr=false; S.sp+=k;
+  }
+  render();
+}
+
+function pg(p){
+  S.pg=p; S.sp=''; S.err=''; S.clr=false; S.fplnOff=0;
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  ACTIONS
+// ══════════════════════════════════════════════
+function setErr(m){ S.err=m; S.sp=''; render(); }
+function clearSP(){ S.sp=''; S.err=''; S.clr=false; render(); }
+
+function doReset(){
+  if(!confirm('Reset MCDU – clear all data?')) return;
+  Object.assign(S,{flt:{nbr:'',dep_time:'',dep_arpt:'',arr_arpt:''},
+    route:[],depRwy:null,sid:null,arrRwy:null,ilsWpts:[],fplnOff:0,pg:'KY20',sp:'',err:'',clr:false});
+  fbDel('active').catch(()=>{});
+  render();
+}
+
+async function doInitReq(){
+  setErr('REQUESTING…');
+  try{
+    const data=await fbGet('flt');
+    if(!data){setErr('NO FPL DATA');return;}
+    if(data.flt_nbr)  S.flt.nbr=data.flt_nbr;
+    if(data.dep_time) S.flt.dep_time=data.dep_time;
+    if(data.dep_arpt) S.flt.dep_arpt=data.dep_arpt;
+    if(data.arr_arpt) S.flt.arr_arpt=data.arr_arpt;
+    // Load route
+    S.route=[];
+    if(data.route){
+      const ent=Object.entries(data.route).sort(([a],[b])=>+a-+b);
+      ent.forEach(([,v])=>{ if(v&&v.name) S.route.push(v); });
+    }
+    S.err=''; S.pg='FPLN';
+    syncActive();
+  }catch(e){ setErr('LINK ERROR'); }
+  render();
+}
+
+async function openArr(){
+  pg('ARRIVAL');
+  const arr=S.flt.arr_arpt;
+  if(!arr){S.arrList=[];render();return;}
+  try{
+    const d=await fbGet(`arpt/${arr}/runways`);
+    S.arrList=d?Object.entries(d).map(([id,v])=>({id,...v})):[];
+  }catch(e){S.arrList=[];}
+  render();
+}
+
+async function openDep(){
+  pg('DEPINFO');
+  const dep=S.flt.dep_arpt;
+  if(!dep){S.rwyList=[];render();return;}
+  try{
+    const d=await fbGet(`arpt/${dep}/runways`);
+    S.rwyList=d?Object.entries(d).map(([id,v])=>({id,...v})):[];
+  }catch(e){S.rwyList=[];}
+  render();
+}
+
+async function selDepRwy(id){
+  S.depRwy=id;
+  const dep=S.flt.dep_arpt;
+  try{
+    const d=await fbGet(`arpt/${dep}/sid/${id}`);
+    S.sidList=d?Object.values(d):[];
+  }catch(e){S.sidList=[];}
+  pg('SIDSEL');
+}
+
+async function selSID(name){
+  const sid=S.sidList.find(s=>s.name===name)||{name};
+  S.sid=sid;
+  // Strip old SID entries, re-inject after dep arpt
+  S.route=S.route.filter(w=>w.type!=='sid');
+  if(sid.wpts){
+    const wArr=Object.values(sid.wpts).sort((a,b)=>(a.order||0)-(b.order||0));
+    const di=S.route.findIndex(w=>w.type==='arpt'&&w.name===S.flt.dep_arpt);
+    const at=di>=0?di+1:0;
+    wArr.forEach((w,i)=>S.route.splice(at+i,0,{...w,type:'sid'}));
+  }
+  syncActive(); pg('FPLN');
+}
+
+async function selArrRwy(id){
+  S.arrRwy=id;
+  const arr=S.flt.arr_arpt;
+  S.route=S.route.filter(w=>w.type!=='ils');
+  try{
+    const d=await fbGet(`arpt/${arr}/ils/${id}`);
+    if(d){
+      const wArr=Object.values(d).sort((a,b)=>(a.order||0)-(b.order||0));
+      S.ilsWpts=wArr;
+      const ai=S.route.findIndex(w=>w.type==='arpt'&&w.name===arr);
+      if(ai>=0) wArr.forEach((w,i)=>S.route.splice(ai+i,0,{...w,type:'ils'}));
+      else wArr.forEach(w=>S.route.push({...w,type:'ils'}));
+    } else { S.ilsWpts=[]; }
+  }catch(e){S.ilsWpts=[];}
+  syncActive(); pg('FPLN');
+}
+
+function fplnClick(idx){
+  if(idx===0&&S.route[0]?.type==='arpt') openDep();
+}
+
+async function syncActive(){
+  const p={
+    flt:S.flt,
+    route:Object.fromEntries(S.route.map((w,i)=>[i+1,w])),
+    dep_rwy:S.depRwy||null,
+    sid:S.sid||null,
+    arr_rwy:S.arrRwy||null
+  };
+  await fbSet('active',p).catch(()=>{});
+}
+
+// Physical keyboard
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  const k=e.key;
+  if(k.length===1&&/[A-Z0-9\/\-\.]/i.test(k)) kp(k.toUpperCase());
+  else if(k==='Backspace') kp('CLR');
+  else if(k==='ArrowUp') kp('↑');
+  else if(k==='ArrowDown') kp('↓');
+});
+
+render();
 </script>
 </body>
 </html>
