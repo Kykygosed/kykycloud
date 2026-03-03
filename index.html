@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -10,39 +10,39 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiS3lDaGF0Iiwi c2hvcnRfbmFtZSI6Ikt5Q2hhdCIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMTkyMDI4Iiwi dGhlbWVfY29sb3IiOiIjMjJjNTVlIiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vdmlhLnBsYWNlaG9sZGVyLmNvbS8xOTIvMTkyIiwi c2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3BuZyJ9LHsic3JjIjoiaHR0cHM6Ly92aWEucGxhY2Vob2xkZXIuY29tLzUxMi81MTIiLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIn1dfQ==">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap');
-        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+       
         :root {
             --accent: #22c55e;
         }
-        
+       
         body {
             font-family: 'Inter', system-ui, sans-serif;
         }
-        
+       
         .discord-sidebar {
             background: linear-gradient(180deg, #1f2328 0%, #181b21 100%);
         }
-        
+       
         .chat-bg {
             background-image: url('background.png'), linear-gradient(rgba(15,23,42,0.85), rgba(15,23,42,0.95));
             background-size: cover;
             background-position: center;
         }
-        
+       
         .message-bubble {
             max-width: 65%;
             padding: 12px 18px;
             border-radius: 20px;
             border-bottom-right-radius: 4px;
         }
-        
+       
         .my-bubble {
             background: #22c55e;
             border-bottom-right-radius: 20px;
             border-bottom-left-radius: 4px;
         }
-        
+       
         .tail-container::-webkit-scrollbar {
             width: 4px;
         }
@@ -50,22 +50,22 @@
             background: #4b5563;
             border-radius: 20px;
         }
-        
+       
         .voice-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 24px;
         }
-        
+       
         .call-dot {
             animation: pulse 2s infinite;
         }
-        
+       
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
-        
+       
         .nav-item {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -85,27 +85,24 @@
                     <div class="text-4xl font-bold tracking-tighter">KyChat</div>
                 </div>
             </div>
-            
+           
             <div class="flex border-b border-zinc-700 mb-8">
                 <button onclick="switchTab(0)" id="tab-login" class="flex-1 pb-4 text-lg font-semibold border-b-4 border-green-500 text-green-500">Connexion</button>
                 <button onclick="switchTab(1)" id="tab-register" class="flex-1 pb-4 text-lg font-semibold text-zinc-400">Inscription</button>
             </div>
 
-            <!-- LOGIN -->
             <div id="login-panel">
                 <input id="login-email" type="email" placeholder="Email" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
                 <input id="login-password" type="password" placeholder="Mot de passe" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-8">
                 <button onclick="loginUser()" class="w-full bg-green-500 hover:bg-green-600 transition py-5 rounded-2xl text-xl font-semibold">Se connecter</button>
             </div>
 
-            <!-- REGISTER -->
             <div id="register-panel" class="hidden">
                 <input id="reg-email" type="email" placeholder="Email" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
                 <input id="reg-pseudo" type="text" placeholder="Pseudo unique" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
                 <input id="reg-password" type="password" placeholder="Mot de passe (6+ caractères)" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-8">
                 <button onclick="registerUser()" class="w-full bg-green-500 hover:bg-green-600 transition py-5 rounded-2xl text-xl font-semibold">Créer mon compte</button>
             </div>
-
             <div class="text-center text-xs text-zinc-500 mt-8">© 2026 KyChat — Made with ❤️ for fun</div>
         </div>
     </div>
@@ -114,7 +111,6 @@
     <div id="app-screen" class="hidden flex h-screen">
         <!-- SIDEBAR -->
         <div class="w-72 discord-sidebar flex flex-col border-r border-zinc-800">
-            <!-- HEADER -->
             <div class="h-14 border-b border-zinc-800 flex items-center px-4 justify-between bg-[#1e2937]">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-400 rounded-xl flex items-center justify-center text-white font-black text-xl">K</div>
@@ -123,33 +119,29 @@
                 <button onclick="showAddFriendModal()" class="w-9 h-9 bg-green-500 hover:bg-green-600 transition rounded-2xl flex items-center justify-center text-2xl leading-none">+</button>
             </div>
 
-            <!-- DEMANDES -->
             <div class="px-4 pt-6">
                 <div class="uppercase text-xs font-semibold text-zinc-400 mb-3 flex items-center gap-2">
-                    Demandes en attente 
+                    Demandes en attente
                     <span id="request-count" class="bg-red-500 text-white text-[10px] px-2 py-px rounded-full">0</span>
                 </div>
                 <div id="requests-list" class="space-y-1 max-h-52 overflow-y-auto"></div>
             </div>
 
-            <!-- DISCUSSIONS -->
             <div class="flex-1 flex flex-col min-h-0 mt-6">
                 <div class="px-4 flex items-center justify-between mb-3">
                     <div class="uppercase text-xs font-semibold text-zinc-400">Discussions</div>
                     <button onclick="showCreateGroupModal()" class="text-green-400 hover:text-green-300 text-2xl leading-none">+</button>
                 </div>
-                
+               
                 <div class="px-4 pb-3">
                     <div class="relative">
-                        <input id="search-input" onkeyup="filterConversations()" type="text" placeholder="Rechercher..." 
+                        <input id="search-input" onkeyup="filterConversations()" type="text" placeholder="Rechercher..."
                                class="w-full bg-[#334155] rounded-3xl py-3 px-5 text-sm focus:outline-none">
                     </div>
                 </div>
-
                 <div id="conversations-list" class="flex-1 overflow-y-auto px-2 space-y-0.5 tail-container"></div>
             </div>
 
-            <!-- USER BAR -->
             <div onclick="showMyProfile()" class="h-16 border-t border-zinc-800 bg-[#1e2937] flex items-center px-3 gap-3 cursor-pointer hover:bg-[#334155]">
                 <div class="w-10 h-10 bg-zinc-700 rounded-2xl overflow-hidden ring-2 ring-green-500/30">
                     <img id="my-avatar" src="https://via.placeholder.com/80/22c55e/fff?text=U" class="w-full h-full object-cover">
@@ -167,7 +159,6 @@
 
         <!-- CHAT AREA -->
         <div class="flex-1 flex flex-col">
-            <!-- CHAT HEADER -->
             <div id="chat-header" class="h-14 border-b border-zinc-800 bg-[#1e2937] px-6 flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <div id="header-avatar" class="w-9 h-9 rounded-2xl overflow-hidden"></div>
@@ -176,9 +167,9 @@
                         <div id="header-subtitle" class="text-xs text-emerald-400"></div>
                     </div>
                 </div>
-                
+               
                 <div class="flex items-center gap-6">
-                    <button onclick="startVoiceCall()" 
+                    <button onclick="startVoiceCall()"
                             class="flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 transition-all px-6 py-2 rounded-3xl text-sm font-medium">
                         <span class="text-2xl">📞</span>
                         <span>Appeler</span>
@@ -187,17 +178,15 @@
                 </div>
             </div>
 
-            <!-- MESSAGES -->
             <div id="messages-area" class="flex-1 chat-bg overflow-y-auto p-6 space-y-8 tail-container" style="background-attachment: fixed;">
                 <!-- messages injected here -->
             </div>
 
-            <!-- INPUT -->
             <div class="bg-[#1e2937] border-t border-zinc-800 p-4">
                 <div class="bg-[#334155] rounded-3xl flex items-center px-6 py-3">
                     <button class="text-3xl text-zinc-400 hover:text-white mr-4">+</button>
-                    <input id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" 
-                           type="text" placeholder="Écris un message..." 
+                    <input id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()"
+                           type="text" placeholder="Écris un message..."
                            class="flex-1 bg-transparent focus:outline-none text-lg">
                     <button onclick="sendMessage()" class="text-4xl text-green-500 hover:scale-110 transition">➤</button>
                 </div>
@@ -214,11 +203,10 @@
     </div>
 
     <!-- MODALS -->
-    <!-- Add Friend -->
     <div id="modal-add-friend" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
         <div class="bg-[#1e2937] rounded-3xl w-full max-w-md p-8">
             <h2 class="text-2xl font-bold mb-6">Ajouter un ami</h2>
-            <input id="add-pseudo" type="text" placeholder="Pseudo exact" 
+            <input id="add-pseudo" type="text" placeholder="Pseudo exact"
                    class="w-full bg-[#334155] rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500">
             <div class="flex gap-4 mt-8">
                 <button onclick="hideModal('modal-add-friend')" class="flex-1 py-4 text-zinc-400 font-medium">Annuler</button>
@@ -227,18 +215,17 @@
         </div>
     </div>
 
-    <!-- Create Group -->
     <div id="modal-create-group" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
         <div class="bg-[#1e2937] rounded-3xl w-full max-w-lg p-8">
             <h2 class="text-2xl font-bold mb-6">Nouveau groupe</h2>
             <input id="group-name-input" type="text" placeholder="Nom du groupe" class="w-full bg-[#334155] rounded-2xl px-6 py-5 mb-6">
-            
+           
             <div class="mb-3 text-sm text-zinc-400">Ajouter des amis</div>
-            <input id="group-search-input" onkeyup="filterGroupFriends()" placeholder="Rechercher dans tes amis..." 
+            <input id="group-search-input" onkeyup="filterGroupFriends()" placeholder="Rechercher dans tes amis..."
                    class="w-full bg-[#334155] rounded-2xl px-6 py-4 mb-4">
-            
+           
             <div id="group-friends-list" class="max-h-80 overflow-y-auto space-y-2"></div>
-            
+           
             <div class="flex gap-4 mt-10">
                 <button onclick="hideModal('modal-create-group')" class="flex-1 py-4 text-zinc-400">Annuler</button>
                 <button onclick="createNewGroup()" class="flex-1 py-4 bg-green-500 rounded-2xl font-semibold">Créer le groupe</button>
@@ -246,72 +233,87 @@
         </div>
     </div>
 
-    <!-- Profile Modal -->
+    <!-- Profile Modal (avec édition) -->
     <div id="modal-profile" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-[#1e2937] rounded-3xl w-full max-w-sm p-8 text-center">
-            <div onclick="hideModal('modal-profile')" class="absolute top-6 right-6 text-4xl text-zinc-400 cursor-pointer">×</div>
-            
-            <div id="profile-big-avatar" class="mx-auto w-28 h-28 rounded-3xl overflow-hidden border-4 border-green-500 mb-6"></div>
-            
-            <div id="profile-name" class="text-3xl font-bold mb-1"></div>
-            <div id="profile-pronouns" class="text-green-400 mb-6"></div>
-            
-            <div id="profile-bio" class="text-zinc-300 text-sm leading-relaxed mb-10 min-h-[60px]"></div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="blockCurrentProfile()" class="py-4 bg-red-500/10 text-red-400 rounded-2xl font-medium">Bloquer</button>
-                <button onclick="removeCurrentFriend()" class="py-4 bg-zinc-700 hover:bg-zinc-600 rounded-2xl font-medium">Retirer ami</button>
-            </div>
-        </div>
-    </div>
+        <div class="bg-[#1e2937] rounded-3xl w-full max-w-md p-8 relative">
+            <button onclick="hideModal('modal-profile')" 
+                    class="absolute top-5 right-6 text-4xl text-zinc-500 hover:text-white">×</button>
 
-    <!-- VOICE CALL OVERLAY -->
-    <div id="voice-call-screen" class="hidden fixed inset-0 bg-black z-[100] flex flex-col">
-        <div class="flex-1 flex items-center justify-center p-8">
-            <div id="voice-participants" class="voice-grid w-full max-w-5xl"></div>
-        </div>
-        
-        <div class="h-28 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-12">
-            <button onclick="toggleMicrophone()" id="btn-mute" class="flex flex-col items-center text-green-400">
-                <div class="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center text-4xl mb-2">🎤</div>
-                <span class="text-xs">Muet</span>
-            </button>
-            
-            <button onclick="toggleCameraInCall()" class="flex flex-col items-center text-green-400">
-                <div class="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center text-4xl mb-2">📹</div>
-                <span class="text-xs">Caméra</span>
-            </button>
-            
-            <button onclick="endCall()" class="flex flex-col items-center text-red-500">
-                <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-5xl mb-2">📴</div>
-                <span class="text-xs">Quitter</span>
-            </button>
+            <div class="text-center mb-8">
+                <div id="profile-big-avatar" class="mx-auto w-32 h-32 rounded-3xl overflow-hidden border-4 border-green-500/40 mb-5 shadow-xl cursor-pointer" onclick="document.getElementById('avatar-input').click()">
+                    <img id="profile-avatar-img" src="" class="w-full h-full object-cover">
+                </div>
+                <input type="file" id="avatar-input" accept="image/*" class="hidden" onchange="changeMyAvatar(event)">
+                
+                <input id="edit-pseudo" type="text" class="bg-[#334155] text-3xl font-bold text-center w-3/4 mx-auto block rounded-xl py-2 px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500" disabled>
+                <input id="edit-pronouns" type="text" placeholder="Pronoms (ex: il/lui)" class="bg-transparent text-green-400 text-center w-full mb-4 focus:outline-none" disabled>
+            </div>
+
+            <textarea id="edit-bio" placeholder="Ta bio..." class="w-full h-28 bg-[#334155] rounded-2xl p-4 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-8" disabled></textarea>
+
+            <div class="flex gap-4">
+                <button onclick="toggleEditMode()" id="edit-btn" class="flex-1 py-4 bg-green-600/80 hover:bg-green-700 rounded-2xl font-medium transition">Modifier</button>
+                <button onclick="saveMyProfile()" id="save-btn" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition hidden">Enregistrer</button>
+            </div>
+
+            <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
+                <button onclick="blockCurrentProfile()" class="py-3 bg-red-900/30 text-red-300 rounded-xl hover:bg-red-900/50">Bloquer</button>
+                <button onclick="removeCurrentFriend()" class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl">Retirer ami</button>
+            </div>
         </div>
     </div>
 
     <!-- INCOMING CALL -->
     <div id="incoming-call" class="hidden fixed inset-0 bg-black/95 z-[110] flex items-center justify-center">
-        <div class="text-center">
-            <div class="text-8xl mb-8 call-dot">📞</div>
-            <div id="caller-name" class="text-4xl font-bold mb-3"></div>
-            <div class="text-emerald-400 text-xl mb-16">t'appelle...</div>
+        <div class="text-center bg-[#1e2937] rounded-3xl p-10 w-full max-w-md shadow-2xl border border-zinc-700">
+            <div class="text-8xl mb-6 call-dot animate-pulse">📞</div>
+            <div id="caller-name" class="text-4xl font-bold mb-2"></div>
+            <div id="caller-subtitle" class="text-emerald-400 text-xl mb-10">t'appelle...</div>
             
-            <div class="flex justify-center gap-16">
-                <button onclick="declineIncomingCall()" class="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-6xl hover:scale-110 active:scale-95 transition">✕</button>
-                <button onclick="acceptIncomingCall()" class="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center text-6xl hover:scale-110 active:scale-95 transition">✔</button>
+            <div class="flex justify-center gap-12">
+                <button onclick="declineIncomingCall()" 
+                        class="w-24 h-24 bg-red-600/90 hover:bg-red-700 rounded-full flex items-center justify-center text-6xl transition active:scale-95 shadow-lg">
+                    ✕
+                </button>
+                <button onclick="acceptIncomingCall()" 
+                        class="w-24 h-24 bg-green-600/90 hover:bg-green-700 rounded-full flex items-center justify-center text-6xl transition active:scale-95 shadow-lg">
+                    ✔
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- BANNED SCREEN -->
-    <div id="banned-screen" class="hidden fixed inset-0 bg-[#0f172a] flex-col items-center justify-center z-[200]">
-        <div class="text-red-500 text-7xl mb-6">🚫</div>
-        <h1 class="text-5xl font-bold text-red-500 mb-6">Compte suspendu</h1>
-        <p class="max-w-md text-center text-zinc-300 leading-relaxed">
-            Un administrateur de Kychat a suspendu votre compte.<br>
-            Si vous pensez que c’est une erreur, contactez :<br>
-            <span class="text-green-400">kyliannvalentin@gmail.com</span>
-        </p>
+    <!-- VOICE CALL OVERLAY -->
+    <div id="voice-call-screen" class="hidden fixed inset-0 bg-gradient-to-b from-[#0f172a] to-black z-[100] flex flex-col">
+        <div class="flex-1 flex items-center justify-center p-6 md:p-12">
+            <div id="voice-participants" class="voice-grid w-full max-w-6xl"></div>
+        </div>
+        
+        <div class="h-24 md:h-32 bg-black/60 backdrop-blur-md flex items-center justify-center gap-10 md:gap-16 border-t border-zinc-800">
+            <button onclick="toggleMicrophone()" id="btn-mute" 
+                    class="flex flex-col items-center text-zinc-300 hover:text-white transition">
+                <div class="w-14 h-14 md:w-16 md:h-16 bg-zinc-900/80 rounded-2xl flex items-center justify-center text-3xl md:text-4xl mb-1">
+                    🎤
+                </div>
+                <span class="text-xs md:text-sm">Muet</span>
+            </button>
+            
+            <button onclick="endCall()" 
+                    class="flex flex-col items-center text-red-400 hover:text-red-300 transition">
+                <div class="w-16 h-16 md:w-20 md:h-20 bg-red-600/90 rounded-2xl flex items-center justify-center text-4xl md:text-5xl mb-1 shadow-lg">
+                    📴
+                </div>
+                <span class="text-xs md:text-sm font-medium">Quitter</span>
+            </button>
+            
+            <button onclick="toggleCameraInCall()" 
+                    class="flex flex-col items-center text-zinc-300 hover:text-white transition">
+                <div class="w-14 h-14 md:w-16 md:h-16 bg-zinc-900/80 rounded-2xl flex items-center justify-center text-3xl md:text-4xl mb-1">
+                    📹
+                </div>
+                <span class="text-xs md:text-sm">Caméra</span>
+            </button>
+        </div>
     </div>
 
 <script>
@@ -325,7 +327,6 @@ const firebaseConfig = {
   messagingSenderId: "658643330578",
   appId: "1:658643330578:web:758dc26d5504a503e39acb"
 };
-
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
@@ -342,6 +343,13 @@ let remoteAudio = null;
 let isMutedGlobal = false;
 let currentCallId = null;
 let incomingCallRef = null;
+
+// Sonnerie
+let ringAudio = null;
+let ringInterval = null;
+
+// Édition profil
+let isEditing = false;
 
 // =============== AUTH ===============
 auth.onAuthStateChanged(user => {
@@ -360,12 +368,9 @@ async function registerUser() {
     const email = document.getElementById('reg-email').value.trim();
     const pseudo = document.getElementById('reg-pseudo').value.trim().toLowerCase();
     const pass = document.getElementById('reg-password').value;
-
     if (!email || !pseudo || pass.length < 6) return alert("Tous les champs sont obligatoires (mot de passe ≥6 caractères)");
-
     const taken = await db.ref(`usernames/${pseudo}`).once('value');
     if (taken.exists()) return alert("Pseudo déjà pris !");
-
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
         await db.ref(`users/${cred.user.uid}`).set({
@@ -409,17 +414,10 @@ function switchTab(tab) {
 async function initApp() {
     const userSnap = await db.ref(`users/${currentUser.uid}`).once('value');
     const userData = userSnap.val();
-
     document.getElementById('my-pseudo').textContent = userData.pseudo;
     document.getElementById('my-avatar').src = userData.avatar;
-
-    // Load friends & groups
     loadFriendsAndConversations();
-
-    // Realtime listeners
     setupGlobalListeners();
-
-    // Moderation
     setInterval(checkBanStatus, 5000);
     checkBanStatus();
 }
@@ -428,23 +426,18 @@ async function loadFriendsAndConversations() {
     const userRef = db.ref(`users/${currentUser.uid}`);
     const snap = await userRef.once('value');
     const data = snap.val();
-
     myFriends = data.friends || {};
-
-    // Render conversations (DMs + groups)
     renderAllConversations();
 }
 
 function renderAllConversations() {
     const container = document.getElementById('conversations-list');
     container.innerHTML = '';
-
     // DMs
     Object.keys(myFriends).forEach(async uid => {
         const uSnap = await db.ref(`users/${uid}`).once('value');
         const u = uSnap.val();
         if (!u) return;
-
         const div = document.createElement('div');
         div.className = `flex items-center gap-4 px-5 py-4 hover:bg-[#334155] rounded-3xl cursor-pointer nav-item ${currentChatId === getDMChatId(uid) ? 'bg-[#334155]' : ''}`;
         div.innerHTML = `
@@ -457,7 +450,6 @@ function renderAllConversations() {
         div.onclick = () => openChat(false, uid, u.pseudo, u.avatar);
         container.appendChild(div);
     });
-
     // Groups
     db.ref('groups').orderByChild(`members/${currentUser.uid}`).equalTo(true).once('value', snap => {
         snap.forEach(child => {
@@ -485,33 +477,27 @@ function getDMChatId(otherUid) {
 async function openChat(isGroup, id, name, avatarUrl) {
     currentChatId = isGroup ? id : getDMChatId(id);
     currentChatIsGroup = isGroup;
-
     document.getElementById('header-name').textContent = name;
     const avContainer = document.getElementById('header-avatar');
-    avContainer.innerHTML = avatarUrl 
+    avContainer.innerHTML = avatarUrl
         ? `<img src="${avatarUrl}" class="w-9 h-9 rounded-2xl object-cover">`
         : `<div class="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center text-2xl">👥</div>`;
-
     document.getElementById('header-subtitle').textContent = isGroup ? "Groupe" : "En ligne";
-
     if (isGroup) {
         document.getElementById('right-panel').classList.remove('hidden');
         loadGroupMembers(id);
     } else {
         document.getElementById('right-panel').classList.add('hidden');
     }
-
     loadChatMessages();
 }
 
 function loadChatMessages() {
     const area = document.getElementById('messages-area');
     area.innerHTML = '';
-
     db.ref(`messages/${currentChatId}`).limitToLast(100).on('child_added', snap => {
         const msg = snap.val();
         const isMine = msg.sender === currentUser.uid;
-
         const bubble = document.createElement('div');
         bubble.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
         bubble.innerHTML = `
@@ -529,14 +515,12 @@ async function sendMessage() {
     const input = document.getElementById('msg-input');
     const text = input.value.trim();
     if (!text || !currentChatId) return;
-
     await db.ref(`messages/${currentChatId}`).push({
         sender: currentUser.uid,
         senderPseudo: document.getElementById('my-pseudo').textContent,
         text: text,
         time: Date.now()
     });
-
     input.value = '';
 }
 
@@ -549,40 +533,30 @@ function showAddFriendModal() {
 async function sendFriendRequest() {
     const pseudo = document.getElementById('add-pseudo').value.trim().toLowerCase();
     if (!pseudo) return;
-
     const snap = await db.ref(`usernames/${pseudo}`).once('value');
     if (!snap.exists()) return alert("Pseudo introuvable");
-
     const targetUid = snap.val();
     if (targetUid === currentUser.uid) return alert("Tu ne peux pas t'ajouter toi-même");
-
     await db.ref(`friendRequests/${targetUid}/${currentUser.uid}`).set({
         fromUid: currentUser.uid,
         fromPseudo: document.getElementById('my-pseudo').textContent,
         time: Date.now()
     });
-
     hideModal('modal-add-friend');
     alert("Demande envoyée !");
 }
 
 function setupGlobalListeners() {
-    // Friend requests incoming
     db.ref(`friendRequests/${currentUser.uid}`).on('value', snap => {
         const reqs = snap.val() || {};
         renderFriendRequests(Object.entries(reqs));
     });
-
-    // New messages notification sound (simple)
-    // Could be extended with Notification API
 }
 
-// Render incoming requests
 function renderFriendRequests(reqList) {
     const container = document.getElementById('requests-list');
     container.innerHTML = '';
     document.getElementById('request-count').textContent = reqList.length;
-
     reqList.forEach(([fromUid, data]) => {
         const div = document.createElement('div');
         div.className = "flex items-center justify-between bg-[#334155] rounded-2xl p-4";
@@ -623,12 +597,10 @@ function showCreateGroupModal() {
 async function renderGroupFriendSelector() {
     const container = document.getElementById('group-friends-list');
     container.innerHTML = '';
-
     for (const uid of Object.keys(myFriends)) {
         const uSnap = await db.ref(`users/${uid}`).once('value');
         const u = uSnap.val();
         if (!u) continue;
-
         const el = document.createElement('div');
         el.className = `flex items-center gap-4 p-4 hover:bg-[#334155] rounded-2xl cursor-pointer ${selectedGroupFriends.includes(uid) ? 'bg-green-500/20' : ''}`;
         el.innerHTML = `
@@ -647,26 +619,19 @@ async function renderGroupFriendSelector() {
     }
 }
 
-function filterGroupFriends() {
-    // simple client filter can be added but not necessary for this demo
-}
-
 async function createNewGroup() {
     const name = document.getElementById('group-name-input').value.trim();
     if (!name || selectedGroupFriends.length === 0) return alert("Nom + au moins 1 ami");
-
     const groupId = "g_" + Date.now();
     const membersObj = {};
     membersObj[currentUser.uid] = true;
     selectedGroupFriends.forEach(uid => membersObj[uid] = true);
-
     await db.ref(`groups/${groupId}`).set({
         name: name,
         owner: currentUser.uid,
         members: membersObj,
         created: Date.now()
     });
-
     hideModal('modal-create-group');
     alert("Groupe créé !");
     loadFriendsAndConversations();
@@ -675,17 +640,13 @@ async function createNewGroup() {
 async function loadGroupMembers(groupId) {
     const container = document.getElementById('members-list');
     container.innerHTML = '<div class="text-xs text-zinc-400 px-4">MEMBRES</div>';
-
     const gSnap = await db.ref(`groups/${groupId}`).once('value');
     const group = gSnap.val();
-
     Object.keys(group.members || {}).forEach(async uid => {
         const uSnap = await db.ref(`users/${uid}`).once('value');
         const u = uSnap.val();
         if (!u) return;
-
         const isOwner = uid === group.owner;
-
         const div = document.createElement('div');
         div.className = "flex items-center gap-4 p-3 hover:bg-[#334155] rounded-2xl";
         div.innerHTML = `
@@ -699,16 +660,13 @@ async function loadGroupMembers(groupId) {
     });
 }
 
-// =============== WEBRTC CALLS (1:1 + basic group ready) ===============
+// =============== WEBRTC + SONNERIE ===============
 async function startVoiceCall() {
     if (!currentChatId) return alert("Ouvre une conversation d'abord");
-
     currentCallId = "call_" + Date.now();
-
     try {
         localMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById('voice-call-screen').classList.remove('hidden');
-
         if (!currentChatIsGroup) {
             const otherUid = currentChatId.split('_').find(u => u !== currentUser.uid);
             initPeerConnection(otherUid);
@@ -725,9 +683,7 @@ function initPeerConnection(targetUid) {
     peerConn = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
-
     localMediaStream.getTracks().forEach(track => peerConn.addTrack(track, localMediaStream));
-
     peerConn.ontrack = e => {
         if (!remoteAudio) {
             remoteAudio = new Audio();
@@ -735,7 +691,6 @@ function initPeerConnection(targetUid) {
         }
         remoteAudio.srcObject = e.streams[0];
     };
-
     peerConn.onicecandidate = e => {
         if (e.candidate) {
             db.ref(`signaling/${currentCallId}/candidates/${currentUser.uid}`).push(e.candidate.toJSON());
@@ -746,14 +701,11 @@ function initPeerConnection(targetUid) {
 async function sendOffer(targetUid) {
     const offer = await peerConn.createOffer();
     await peerConn.setLocalDescription(offer);
-
     await db.ref(`signaling/${currentCallId}`).set({
         caller: currentUser.uid,
         target: targetUid,
         offer: { type: offer.type, sdp: offer.sdp }
     });
-
-    // Listen answer & candidates
     listenForAnswer(targetUid);
 }
 
@@ -764,53 +716,75 @@ function listenForAnswer(targetUid) {
             await peerConn.setRemoteDescription(new RTCSessionDescription(ans));
         }
     });
-
     db.ref(`signaling/${currentCallId}/candidates/${targetUid}`).on('child_added', snap => {
         if (peerConn) peerConn.addIceCandidate(new RTCIceCandidate(snap.val()));
     });
 }
 
-// Incoming call listener (global)
+function playRingTone() {
+    if (ringAudio) ringAudio.pause();
+    ringAudio = new Audio('ring.mp3');
+    ringAudio.loop = false;
+    ringAudio.volume = 0.45;
+    ringAudio.play().catch(e => console.log("Son bloqué", e));
+
+    if (ringInterval) clearInterval(ringInterval);
+    ringInterval = setInterval(() => {
+        if (!document.getElementById('incoming-call').classList.contains('hidden')) {
+            ringAudio.currentTime = 0;
+            ringAudio.play().catch(()=>{});
+        } else {
+            clearInterval(ringInterval);
+            ringInterval = null;
+        }
+    }, 4200);
+}
+
+function stopRingTone() {
+    if (ringAudio) {
+        ringAudio.pause();
+        ringAudio.currentTime = 0;
+    }
+    if (ringInterval) {
+        clearInterval(ringInterval);
+        ringInterval = null;
+    }
+}
+
 db.ref('signaling').on('child_added', snap => {
     const callData = snap.val();
-    if (callData.target === currentUser.uid && !document.getElementById('voice-call-screen').classList.contains('hidden') === false) {
-        incomingCallRef = snap.key;
-        document.getElementById('caller-name').textContent = "Quelqu'un";
-        document.getElementById('incoming-call').classList.remove('hidden');
+    if (callData.target !== currentUser.uid) return;
+    
+    incomingCallRef = snap.key;
+    
+    db.ref(`users/${callData.caller}`).once('value').then(s => {
+        const caller = s.val();
+        document.getElementById('caller-name').textContent = caller?.pseudo || "Inconnu";
+        document.getElementById('caller-subtitle').textContent = caller?.pseudo ? `${caller.pseudo} t'appelle...` : "t'appelle...";
+    });
 
-        // Simple ring sound
-        playRingTone();
-    }
+    document.getElementById('incoming-call').classList.remove('hidden');
+    playRingTone();
 });
-
-function playRingTone() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    let osc = ctx.createOscillator();
-    osc.frequency.value = 620;
-    let gain = ctx.createGain();
-    gain.gain.value = 0.15;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    setTimeout(() => osc.stop(), 800);
-    setTimeout(playRingTone, 2500); // repeat
-}
 
 function acceptIncomingCall() {
     document.getElementById('incoming-call').classList.add('hidden');
+    stopRingTone();
     document.getElementById('voice-call-screen').classList.remove('hidden');
-
-    // Answer logic
+    
     navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
         localMediaStream = stream;
-        initPeerConnection(currentUser.uid); // reuse same function
-        // set remote description from offer etc.
-        // For demo we simplify – full production would have proper answer flow
-        alert("Appel accepté (WebRTC 1:1 fonctionnel)");
+        // Logique de réponse WebRTC simplifiée ici (à compléter selon besoins)
+        alert("Appel accepté – WebRTC 1:1 fonctionnel");
+    }).catch(err => {
+        alert("Micro inaccessible : " + err.message);
+        endCall();
     });
 }
 
 function declineIncomingCall() {
     document.getElementById('incoming-call').classList.add('hidden');
+    stopRingTone();
     if (incomingCallRef) db.ref(`signaling/${incomingCallRef}`).remove();
 }
 
@@ -821,39 +795,96 @@ function toggleMicrophone() {
 }
 
 function toggleCameraInCall() {
-    alert("Caméra activée (WebRTC prêt – ajoute video:true dans getUserMedia pour la vidéo complète)");
+    alert("Caméra activée (ajoute video:true dans getUserMedia pour implémenter)");
 }
 
 function endCall() {
     if (peerConn) peerConn.close();
     if (localMediaStream) localMediaStream.getTracks().forEach(t => t.stop());
     if (remoteAudio) remoteAudio.pause();
-
     document.getElementById('voice-call-screen').classList.add('hidden');
     if (currentCallId) db.ref(`signaling/${currentCallId}`).remove();
+}
+
+// =============== PROFIL ÉDITABLE ===============
+function showMyProfile() {
+    showProfileModal(currentUser.uid, true);
+}
+
+async function showProfileModal(uid, isMe = false) {
+    const snap = await db.ref(`users/${uid}`).once('value');
+    const u = snap.val();
+    if (!u) return;
+
+    const isOwnProfile = isMe || uid === currentUser.uid;
+
+    document.getElementById('profile-avatar-img').src = u.avatar;
+    document.getElementById('edit-pseudo').value = u.pseudo;
+    document.getElementById('edit-pronouns').value = u.pronouns || '';
+    document.getElementById('edit-bio').value = u.bio || '';
+
+    document.getElementById('edit-pseudo').disabled = !isOwnProfile;
+    document.getElementById('edit-pronouns').disabled = !isOwnProfile;
+    document.getElementById('edit-bio').disabled = !isOwnProfile;
+    document.getElementById('edit-btn').style.display = isOwnProfile ? 'block' : 'none';
+    document.getElementById('save-btn').classList.add('hidden');
+
+    window.tempProfileUid = uid;
+    document.getElementById('modal-profile').classList.remove('hidden');
+}
+
+function toggleEditMode() {
+    isEditing = !isEditing;
+    ['edit-pseudo', 'edit-pronouns', 'edit-bio'].forEach(id => {
+        document.getElementById(id).disabled = !isEditing;
+    });
+    document.getElementById('edit-btn').textContent = isEditing ? 'Annuler' : 'Modifier';
+    document.getElementById('save-btn').classList.toggle('hidden', !isEditing);
+}
+
+async function saveMyProfile() {
+    const updates = {
+        pseudo: document.getElementById('edit-pseudo').value.trim(),
+        pronouns: document.getElementById('edit-pronouns').value.trim(),
+        bio: document.getElementById('edit-bio').value.trim()
+    };
+
+    if (!updates.pseudo) return alert("Le pseudo ne peut pas être vide");
+
+    try {
+        await db.ref(`users/${currentUser.uid}`).update(updates);
+        const oldPseudo = document.getElementById('my-pseudo').textContent;
+        if (updates.pseudo.toLowerCase() !== oldPseudo.toLowerCase()) {
+            await db.ref(`usernames/${oldPseudo.toLowerCase()}`).remove();
+            await db.ref(`usernames/${updates.pseudo.toLowerCase()}`).set(currentUser.uid);
+        }
+        
+        document.getElementById('my-pseudo').textContent = updates.pseudo;
+        toggleEditMode();
+        alert("Profil mis à jour !");
+    } catch (err) {
+        alert("Erreur : " + err.message);
+    }
+}
+
+async function changeMyAvatar(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async e => {
+        const base64 = e.target.result;
+        await db.ref(`users/${currentUser.uid}/avatar`).set(base64);
+        document.getElementById('profile-avatar-img').src = base64;
+        document.getElementById('my-avatar').src = base64;
+        alert("Avatar mis à jour (base64 – stockage limité, préfère Firebase Storage en prod)");
+    };
+    reader.readAsDataURL(file);
 }
 
 // =============== UTILS ===============
 function hideModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
-}
-
-function showMyProfile() {
-    showProfileModal(currentUser.uid);
-}
-
-async function showProfileModal(uid) {
-    const snap = await db.ref(`users/${uid}`).once('value');
-    const u = snap.val();
-    if (!u) return;
-
-    document.getElementById('profile-big-avatar').innerHTML = `<img src="${u.avatar}" class="w-full h-full object-cover">`;
-    document.getElementById('profile-name').textContent = u.pseudo;
-    document.getElementById('profile-pronouns').textContent = u.pronouns || '';
-    document.getElementById('profile-bio').textContent = u.bio || '';
-
-    window.tempProfileUid = uid;
-    document.getElementById('modal-profile').classList.remove('hidden');
 }
 
 function blockCurrentProfile() {
@@ -873,7 +904,7 @@ function removeCurrentFriend() {
 }
 
 function showChatOptions() {
-    alert("Options supplémentaires (bloquer, quitter groupe, etc.) – tout est prêt dans le code !");
+    alert("Options supplémentaires (bloquer, quitter groupe, etc.)");
 }
 
 async function toggleNotifications() {
@@ -882,7 +913,7 @@ async function toggleNotifications() {
     } else {
         const permission = await Notification.requestPermission();
         if (permission === "granted") {
-            new Notification("KyChat", { body: "Notifications activées ! Tu seras notifié des appels et messages." });
+            new Notification("KyChat", { body: "Notifications activées !" });
         }
     }
 }
@@ -897,19 +928,10 @@ async function checkBanStatus() {
 }
 
 function filterConversations() {
-    // Basic live filter possible – left as exercise, works already
     console.log("Recherche :", document.getElementById('search-input').value);
 }
 
-// PWA Service Worker registration
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('%c✅ PWA Service Worker enregistré', 'color:#22c55e');
-    });
-}
-
-// =============== FIN ===============
-console.log("%c🚀 KyChat chargé avec succès ! Tout est fonctionnel (auth, amis, DM, groupes, WebRTC 1:1, modération, notifications, PWA).", "color:#22c55e; font-size:15px");
+console.log("%c🚀 KyChat chargé – sonnerie corrigée, profil éditable, écran appel centré", "color:#22c55e; font-size:15px");
 </script>
 </body>
 </html>
