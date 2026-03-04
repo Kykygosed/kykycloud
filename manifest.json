@@ -7,7 +7,7 @@
   "theme_color": "#212234",
   "icons": [
     {
-      "src": "/kykycloud/logo.png",
+      "src": "./kykycloud/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
