@@ -115,19 +115,39 @@ async function sendMessage() {
   db.ref(`typing/${chatId}/${CU.uid}`).remove();
 }
 
-/* ── SEND IMAGE URL ── */
+/* ── SEND IMAGE (file upload → base64, same system as profile photo) ── */
 function showImageModal() {
-  el('image-url-input').value = '';
+  el('image-file-input').value = '';
+  el('image-preview').style.display = 'none';
+  el('image-preview-img').src = '';
+  el('send-image-btn').disabled = true;
   el('modal-image').classList.remove('hidden');
-  setTimeout(() => el('image-url-input').focus(), 80);
 }
-async function sendImageUrl() {
-  const url = el('image-url-input').value.trim();
-  if (!url || !chatId) return;
+
+// Triggered when user picks a file
+function onImageFileSelected(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) return toast('❌ Image trop grande (max 4 Mo)');
+  const r = new FileReader();
+  r.onload = e => {
+    const b64 = e.target.result;
+    el('image-preview-img').src = b64;
+    el('image-preview').style.display = 'block';
+    el('send-image-btn').disabled = false;
+    el('send-image-btn')._b64 = b64;
+  };
+  r.readAsDataURL(file);
+}
+
+async function sendImageFile() {
+  const b64 = el('send-image-btn')._b64;
+  if (!b64 || !chatId) return;
   hideModal('modal-image');
-  const msg = { sender: CU.uid, senderPseudo: myData?.pseudo || '', text: '', imageUrl: url, time: Date.now() };
+  const msg = { sender: CU.uid, senderPseudo: myData?.pseudo || '', text: '', imageUrl: b64, time: Date.now() };
   const ref = await db.ref(`messages/${chatId}`).push(msg);
   await db.ref(`messages/${chatId}/${ref.key}/_key`).set(ref.key);
+  playSound('send');
 }
 
 /* ── REPLY ── */
