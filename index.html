@@ -578,15 +578,21 @@ async function initApp() {
 }
 
 /* ────────── REAL-TIME CONVOS ────────── */
+let _renderDebounce = null;
+function scheduleRenderConvList() {
+    if (_renderDebounce) clearTimeout(_renderDebounce);
+    _renderDebounce = setTimeout(() => renderConvList(document.getElementById('search-input')?.value || ''), 120);
+}
+
 function listenFriendsRealtime() {
     db.ref(`users/${currentUser.uid}/friends`).on('value', snap => {
         myFriends = snap.val() || {};
-        renderConvList();
+        scheduleRenderConvList();
     });
 }
 
 function listenGroupsRealtime() {
-    db.ref('groups').on('value', () => renderConvList());
+    db.ref('groups').on('value', () => scheduleRenderConvList());
 }
 
 async function renderConvList(filter = '') {
@@ -649,7 +655,7 @@ function createConvEl({ avatarSrc, name, sub, active, onClick, isGroup = false }
 }
 
 function filterConversations() {
-    renderConvList(document.getElementById('search-input').value);
+    renderConvList(document.getElementById('search-input').value || '');
 }
 
 function getDMId(uid) {
