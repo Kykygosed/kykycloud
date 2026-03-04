@@ -103,6 +103,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
 
 /* ── GIF GRID ── */
 #gif-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+/* ── disabled button ── */
+button:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body class="h-screen overflow-hidden">
@@ -407,17 +409,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
   </div>
 </div>
 
-<!-- Send image URL -->
+<!-- Send image (file upload → base64) -->
 <div id="modal-image" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 modal-bd" style="background:rgba(0,0,0,.75)">
   <div class="w-full max-w-md rounded-3xl p-8 shadow-2xl" style="background:var(--bg-card);border:1px solid var(--border)">
     <h2 class="text-xl font-bold mb-5">🖼 Envoyer une image</h2>
-    <input id="image-url-input" type="url" placeholder="https://exemple.com/image.jpg" onkeypress="if(event.key==='Enter')sendImageUrl()" class="input-field mb-3">
-    <div id="image-preview" class="rounded-xl overflow-hidden mb-4" style="display:none;max-height:200px">
-      <img id="image-preview-img" src="" alt="" style="width:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+    <!-- Hidden file input -->
+    <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="onImageFileSelected(event)">
+    <!-- Click area -->
+    <div onclick="el('image-file-input').click()" style="border:2px dashed var(--border);border-radius:16px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s"
+         onmouseenter="this.style.borderColor='#22c55e'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div class="text-4xl mb-2">📁</div>
+      <div class="text-sm font-semibold" style="color:var(--text-muted)">Clique pour choisir une image</div>
+      <div class="text-xs mt-1" style="color:var(--text-muted)">JPG, PNG, GIF, WebP · max 4 Mo</div>
     </div>
-    <div class="flex gap-3">
+    <!-- Preview -->
+    <div id="image-preview" class="rounded-xl overflow-hidden mt-4" style="display:none;max-height:220px">
+      <img id="image-preview-img" src="" alt="" style="width:100%;max-height:220px;object-fit:contain;border-radius:12px">
+    </div>
+    <div class="flex gap-3 mt-5">
       <button onclick="hideModal('modal-image')" class="flex-1 py-3 rounded-2xl font-medium text-sm" style="background:var(--bg-input);color:var(--text-muted)">Annuler</button>
-      <button onclick="sendImageUrl()" class="btn-g flex-1 py-3">Envoyer</button>
+      <button id="send-image-btn" onclick="sendImageFile()" class="btn-g flex-1 py-3" disabled>Envoyer</button>
     </div>
   </div>
 </div>
@@ -470,17 +481,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text
 <script src="./js/auth.js"></script>
 
 <script>
-// Image preview in the image modal
+// Reactively enable/disable send-image-btn
 document.addEventListener('DOMContentLoaded', () => {
-  el('image-url-input')?.addEventListener('input', () => {
-    const url = el('image-url-input').value.trim();
-    const prev = el('image-preview');
-    const img  = el('image-preview-img');
-    if (url) { img.src = url; prev.style.display = 'block'; }
-    else     prev.style.display = 'none';
+  const btn = el('send-image-btn');
+  if (btn) btn.addEventListener('click', () => {
+    if (!btn.disabled) btn.style.opacity = '1';
   });
 });
-console.log('%c🚀 KyChat v8 — reply, edit, delete, unread, GIFs, images, common friends, leave group, minimize call, WebRTC fixed', 'color:#22c55e;font-size:13px;font-weight:700');
+console.log('%c🚀 KyChat v8 — file-upload images, 100% WebRTC video, join-with-cam, peerMap mesh', 'color:#22c55e;font-size:13px;font-weight:700');
 </script>
 </body>
 </html>
