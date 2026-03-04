@@ -8,931 +8,1224 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
-    <link rel="manifest" href="manifest.json">
-    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiS3lDaGF0Iiwi c2hvcnRfbmFtZSI6Ikt5Q2hhdCIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMTkyMDI4Iiwi dGhlbWVfY29sb3IiOiIjMjJjNTVlIiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vdmlhLnBsYWNlaG9sZGVyLmNvbS8xOTIvMTkyIiwi c2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3BuZyJ9LHsic3JjIjoiaHR0cHM6Ly92aWEucGxhY2Vob2xkZXIuY29tLzUxMi81MTIiLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIn1dfQ==">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
-       
         :root {
             --accent: #22c55e;
+            --accent-dark: #16a34a;
+            --bg-deep: #0b1120;
+            --bg-panel: #111827;
+            --bg-card: #1a2235;
+            --bg-input: #243044;
+            --border: #1e2d45;
+            --text: #e2e8f0;
+            --text-muted: #64748b;
         }
-       
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text);
         }
-       
-        .discord-sidebar {
-            background: linear-gradient(180deg, #1f2328 0%, #181b21 100%);
+
+        /* ======= BUBBLE ANIMATIONS ======= */
+        @keyframes bubbleIn {
+            0%   { opacity: 0; transform: scale(0.72) translateY(10px); }
+            55%  { opacity: 1; transform: scale(1.04) translateY(-2px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
         }
-       
+        .bubble-animate {
+            animation: bubbleIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* ======= BUBBLES ======= */
+        .bubble-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            margin-bottom: 3px;
+        }
+        .bubble-row.mine { flex-direction: row-reverse; }
+
+        .bubble {
+            max-width: 62%;
+            padding: 9px 14px 7px;
+            font-size: 14.5px;
+            line-height: 1.55;
+            word-break: break-word;
+        }
+
+        .bubble.mine {
+            background: linear-gradient(145deg, #25d366 0%, #128c3e 100%);
+            color: #fff;
+            border-radius: 18px 18px 4px 18px;
+            box-shadow: 0 3px 14px rgba(34,197,94,.28), 0 1px 4px rgba(0,0,0,.3);
+        }
+
+        .bubble.theirs {
+            background: var(--bg-card);
+            color: var(--text);
+            border-radius: 18px 18px 18px 4px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,.25);
+        }
+
+        .bubble .meta {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            margin-bottom: 3px;
+        }
+        .bubble.mine .meta  { color: rgba(255,255,255,0.65); }
+        .bubble.theirs .meta { color: var(--text-muted); }
+
+        /* ======= TYPING ======= */
+        @keyframes typeDot {
+            0%, 80%, 100% { transform: translateY(0); opacity: .4; }
+            40%            { transform: translateY(-5px); opacity: 1; }
+        }
+        .typing-dot { display: inline-block; width:7px; height:7px; border-radius:50%; background:#22c55e; animation: typeDot 1.3s infinite; }
+        .typing-dot:nth-child(2) { animation-delay:.15s; }
+        .typing-dot:nth-child(3) { animation-delay:.3s; }
+
+        /* ======= SCROLLBAR ======= */
+        .scroll::-webkit-scrollbar { width: 4px; }
+        .scroll::-webkit-scrollbar-track { background: transparent; }
+        .scroll::-webkit-scrollbar-thumb { background: #2a3a55; border-radius: 20px; }
+
+        /* ======= SIDEBAR ======= */
+        .sidebar { background: linear-gradient(180deg, #0f1929 0%, #0b1120 100%); }
+
+        /* ======= CHAT BG ======= */
         .chat-bg {
-            background-image: url('background.png'), linear-gradient(rgba(15,23,42,0.85), rgba(15,23,42,0.95));
+            background-image: url('background.png'), linear-gradient(160deg, #0b1120 0%, #0d1a2e 100%);
             background-size: cover;
             background-position: center;
+            background-color: #0b1120;
         }
-       
-        .message-bubble {
-            max-width: 65%;
-            padding: 12px 18px;
-            border-radius: 20px;
-            border-bottom-right-radius: 4px;
+
+        /* ======= NAV ITEM ======= */
+        .nav-item { transition: transform .18s ease, background .18s ease; }
+        .nav-item:hover { transform: translateX(3px); }
+        .nav-active { background: var(--bg-card) !important; }
+
+        /* ======= TOAST ======= */
+        @keyframes toastIn {
+            from { opacity:0; transform: translateX(-50%) translateY(14px) scale(.93); }
+            to   { opacity:1; transform: translateX(-50%) translateY(0) scale(1); }
         }
-       
-        .my-bubble {
-            background: #22c55e;
-            border-bottom-right-radius: 20px;
-            border-bottom-left-radius: 4px;
+        .toast {
+            position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%);
+            background: #1e2d45; color: var(--text); padding: 10px 22px;
+            border-radius: 50px; font-size: 13px; font-weight: 600;
+            border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.45);
+            z-index: 999; animation: toastIn .25s ease forwards;
+            pointer-events: none; white-space: nowrap;
         }
-       
-        .tail-container::-webkit-scrollbar {
-            width: 4px;
+
+        /* ======= NOTIF BUTTON STATES ======= */
+        .notif-active  { color: #22c55e !important; }
+        .notif-inactive { color: #475569 !important; }
+
+        /* ======= MODAL BACKDROP ======= */
+        .modal-backdrop { backdrop-filter: blur(6px); }
+
+        /* ======= CALL PULSE ======= */
+        @keyframes callPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+        .call-pulse { animation: callPulse 1.6s infinite; }
+
+        /* ======= INPUT FOCUS ======= */
+        .input-field {
+            width:100%; background: var(--bg-input); color: var(--text);
+            border-radius: 14px; padding: 12px 18px;
+            border: 1.5px solid transparent;
+            transition: border-color .2s;
+            outline: none; font-family: inherit; font-size: 14px;
         }
-        .tail-container::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 20px;
+        .input-field::placeholder { color: var(--text-muted); }
+        .input-field:focus { border-color: #22c55e55; }
+
+        /* ======= BTN ======= */
+        .btn-green {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff; font-weight: 700; border-radius: 14px;
+            padding: 12px 20px; transition: opacity .2s, transform .15s;
+            font-family: inherit; font-size: 14px; cursor: pointer;
         }
-       
-        .voice-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 24px;
-        }
-       
-        .call-dot {
-            animation: pulse 2s infinite;
-        }
-       
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-       
-        .nav-item {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .nav-item:hover {
-            transform: translateX(4px);
-        }
+        .btn-green:hover { opacity: .9; transform: translateY(-1px); }
+        .btn-green:active { transform: translateY(0); }
+
+        /* Tab borders */
+        .tab-on  { border-bottom: 2.5px solid #22c55e; color: #22c55e; }
+        .tab-off { border-bottom: 2.5px solid transparent; color: var(--text-muted); }
     </style>
 </head>
-<body class="bg-[#0f172a] text-white h-screen overflow-hidden flex flex-col">
+<body class="h-screen overflow-hidden">
 
-    <!-- LOGIN / REGISTER -->
-    <div id="auth-screen" class="flex-1 flex items-center justify-center bg-[#0f172a]">
-        <div class="w-full max-w-md bg-[#1e2937] rounded-3xl shadow-2xl p-10">
-            <div class="flex justify-center mb-8">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-400 rounded-2xl flex items-center justify-center text-3xl font-black">K</div>
-                    <div class="text-4xl font-bold tracking-tighter">KyChat</div>
+<!-- ============================================================ BANNED -->
+<div id="banned-screen" class="hidden fixed inset-0 bg-[#0b1120] flex items-center justify-center z-[999]">
+    <div class="text-center p-8">
+        <div class="text-8xl mb-6">🚫</div>
+        <div class="text-4xl font-bold text-red-400 mb-3">Compte suspendu</div>
+        <div style="color:var(--text-muted)">Ton compte a été banni. Contacte l'administrateur.</div>
+    </div>
+</div>
+
+<!-- ============================================================ AUTH -->
+<div id="auth-screen" class="flex h-screen items-center justify-center">
+    <div class="w-full max-w-md rounded-3xl p-10 shadow-2xl" style="background:var(--bg-card); border:1px solid var(--border)">
+        <div class="flex justify-center mb-8">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black text-white" style="background: linear-gradient(135deg,#22c55e,#0d9488)">K</div>
+                <span class="text-4xl font-bold tracking-tight">KyChat</span>
+            </div>
+        </div>
+
+        <div class="flex mb-8">
+            <button onclick="switchTab(0)" id="tab-login" class="flex-1 pb-3 text-base font-semibold tab-on transition-colors">Connexion</button>
+            <button onclick="switchTab(1)" id="tab-register" class="flex-1 pb-3 text-base font-semibold tab-off transition-colors">Inscription</button>
+        </div>
+
+        <div id="login-panel" class="space-y-4">
+            <input id="login-email" type="email" placeholder="Email" class="input-field">
+            <input id="login-password" type="password" placeholder="Mot de passe" onkeypress="if(event.key==='Enter')loginUser()" class="input-field">
+            <button onclick="loginUser()" class="btn-green w-full mt-2">Se connecter</button>
+        </div>
+
+        <div id="register-panel" class="hidden space-y-4">
+            <input id="reg-email" type="email" placeholder="Email" class="input-field">
+            <input id="reg-pseudo" type="text" placeholder="Pseudo unique" class="input-field">
+            <input id="reg-password" type="password" placeholder="Mot de passe (6+ car.)" onkeypress="if(event.key==='Enter')registerUser()" class="input-field">
+            <button onclick="registerUser()" class="btn-green w-full mt-2">Créer mon compte</button>
+        </div>
+        <div class="text-center text-xs mt-8" style="color:var(--text-muted)">© 2026 KyChat — Made with ❤️ for fun</div>
+    </div>
+</div>
+
+<!-- ============================================================ APP -->
+<div id="app-screen" class="hidden flex h-screen">
+
+    <!-- SIDEBAR -->
+    <div class="w-72 sidebar flex flex-col flex-shrink-0" style="border-right:1px solid var(--border)">
+
+        <!-- Header -->
+        <div class="h-14 flex items-center px-4 justify-between flex-shrink-0" style="border-bottom:1px solid var(--border); background:var(--bg-panel)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-lg" style="background:linear-gradient(135deg,#22c55e,#0d9488)">K</div>
+                <span class="font-bold text-xl tracking-tight">KyChat</span>
+            </div>
+            <button onclick="showAddFriendModal()" title="Ajouter un ami"
+                    class="w-8 h-8 rounded-xl flex items-center justify-center text-xl font-bold transition hover:scale-110"
+                    style="background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff">+</button>
+        </div>
+
+        <!-- Friend requests -->
+        <div class="px-4 pt-4 flex-shrink-0">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs font-semibold uppercase tracking-widest" style="color:var(--text-muted)">Demandes</span>
+                <span id="request-count" class="hidden bg-red-500 text-white text-[10px] font-bold px-1.5 py-px rounded-full">0</span>
+            </div>
+            <div id="requests-list" class="space-y-1 max-h-36 overflow-y-auto scroll"></div>
+        </div>
+
+        <!-- Conversations -->
+        <div class="flex-1 flex flex-col min-h-0 mt-4">
+            <div class="px-4 flex items-center justify-between mb-2 flex-shrink-0">
+                <span class="text-xs font-semibold uppercase tracking-widest" style="color:var(--text-muted)">Discussions</span>
+                <button onclick="showCreateGroupModal()" class="text-green-400 hover:text-green-300 text-xl leading-none font-bold transition">+</button>
+            </div>
+            <div class="px-3 pb-3 flex-shrink-0">
+                <input id="search-input" oninput="filterConversations()" type="text" placeholder="Rechercher..."
+                       class="w-full rounded-2xl py-2.5 px-4 text-sm focus:outline-none"
+                       style="background:var(--bg-input); color:var(--text); border:1.5px solid transparent">
+            </div>
+            <div id="conversations-list" class="flex-1 overflow-y-auto px-2 space-y-0.5 scroll"></div>
+        </div>
+
+        <!-- My profile bar -->
+        <div onclick="showMyProfile()" class="h-16 flex items-center px-3 gap-3 cursor-pointer transition flex-shrink-0"
+             style="border-top:1px solid var(--border); background:var(--bg-panel)"
+             onmouseenter="this.style.background='var(--bg-card)'" onmouseleave="this.style.background='var(--bg-panel)'">
+            <div class="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style="ring:2px solid #22c55e44">
+                <img id="my-avatar" src="" class="w-full h-full object-cover" onerror="this.src='basic1.png'">
+            </div>
+            <div class="flex-1 min-w-0">
+                <div id="my-pseudo" class="font-semibold truncate text-sm">Chargement...</div>
+                <div class="text-xs flex items-center gap-1.5" style="color:#22c55e">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block"></span>
+                    En ligne
                 </div>
             </div>
-           
-            <div class="flex border-b border-zinc-700 mb-8">
-                <button onclick="switchTab(0)" id="tab-login" class="flex-1 pb-4 text-lg font-semibold border-b-4 border-green-500 text-green-500">Connexion</button>
-                <button onclick="switchTab(1)" id="tab-register" class="flex-1 pb-4 text-lg font-semibold text-zinc-400">Inscription</button>
-            </div>
-
-            <div id="login-panel">
-                <input id="login-email" type="email" placeholder="Email" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
-                <input id="login-password" type="password" placeholder="Mot de passe" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-8">
-                <button onclick="loginUser()" class="w-full bg-green-500 hover:bg-green-600 transition py-5 rounded-2xl text-xl font-semibold">Se connecter</button>
-            </div>
-
-            <div id="register-panel" class="hidden">
-                <input id="reg-email" type="email" placeholder="Email" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
-                <input id="reg-pseudo" type="text" placeholder="Pseudo unique" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-4">
-                <input id="reg-password" type="password" placeholder="Mot de passe (6+ caractères)" class="w-full bg-[#334155] text-white placeholder-zinc-400 rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500 mb-8">
-                <button onclick="registerUser()" class="w-full bg-green-500 hover:bg-green-600 transition py-5 rounded-2xl text-xl font-semibold">Créer mon compte</button>
-            </div>
-            <div class="text-center text-xs text-zinc-500 mt-8">© 2026 KyChat — Made with ❤️ for fun</div>
+            <button onclick="event.stopPropagation();toggleNotifications()" id="notif-btn"
+                    class="w-9 h-9 rounded-xl flex items-center justify-center text-lg transition notif-inactive"
+                    style="background:var(--bg-input)">🔔</button>
         </div>
     </div>
 
-    <!-- MAIN APP -->
-    <div id="app-screen" class="hidden flex h-screen">
-        <!-- SIDEBAR -->
-        <div class="w-72 discord-sidebar flex flex-col border-r border-zinc-800">
-            <div class="h-14 border-b border-zinc-800 flex items-center px-4 justify-between bg-[#1e2937]">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-400 rounded-xl flex items-center justify-center text-white font-black text-xl">K</div>
-                    <span class="font-bold text-2xl tracking-tighter">KyChat</span>
-                </div>
-                <button onclick="showAddFriendModal()" class="w-9 h-9 bg-green-500 hover:bg-green-600 transition rounded-2xl flex items-center justify-center text-2xl leading-none">+</button>
-            </div>
+    <!-- CHAT AREA -->
+    <div class="flex-1 flex flex-col min-w-0">
 
-            <div class="px-4 pt-6">
-                <div class="uppercase text-xs font-semibold text-zinc-400 mb-3 flex items-center gap-2">
-                    Demandes en attente
-                    <span id="request-count" class="bg-red-500 text-white text-[10px] px-2 py-px rounded-full">0</span>
-                </div>
-                <div id="requests-list" class="space-y-1 max-h-52 overflow-y-auto"></div>
-            </div>
-
-            <div class="flex-1 flex flex-col min-h-0 mt-6">
-                <div class="px-4 flex items-center justify-between mb-3">
-                    <div class="uppercase text-xs font-semibold text-zinc-400">Discussions</div>
-                    <button onclick="showCreateGroupModal()" class="text-green-400 hover:text-green-300 text-2xl leading-none">+</button>
-                </div>
-               
-                <div class="px-4 pb-3">
-                    <div class="relative">
-                        <input id="search-input" onkeyup="filterConversations()" type="text" placeholder="Rechercher..."
-                               class="w-full bg-[#334155] rounded-3xl py-3 px-5 text-sm focus:outline-none">
-                    </div>
-                </div>
-                <div id="conversations-list" class="flex-1 overflow-y-auto px-2 space-y-0.5 tail-container"></div>
-            </div>
-
-            <div onclick="showMyProfile()" class="h-16 border-t border-zinc-800 bg-[#1e2937] flex items-center px-3 gap-3 cursor-pointer hover:bg-[#334155]">
-                <div class="w-10 h-10 bg-zinc-700 rounded-2xl overflow-hidden ring-2 ring-green-500/30">
-                    <img id="my-avatar" src="https://via.placeholder.com/80/22c55e/fff?text=U" class="w-full h-full object-cover">
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div id="my-pseudo" class="font-semibold truncate">Chargement...</div>
-                    <div class="text-emerald-400 text-xs flex items-center gap-1">
-                        <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                        En ligne
-                    </div>
-                </div>
-                <button onclick="event.stopImmediatePropagation(); toggleNotifications()" class="w-9 h-9 hover:bg-zinc-700 rounded-2xl flex items-center justify-center text-xl">🛎️</button>
-            </div>
-        </div>
-
-        <!-- CHAT AREA -->
-        <div class="flex-1 flex flex-col">
-            <div id="chat-header" class="h-14 border-b border-zinc-800 bg-[#1e2937] px-6 flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <div id="header-avatar" class="w-9 h-9 rounded-2xl overflow-hidden"></div>
-                    <div>
-                        <div id="header-name" class="font-semibold text-lg"></div>
-                        <div id="header-subtitle" class="text-xs text-emerald-400"></div>
-                    </div>
-                </div>
-               
-                <div class="flex items-center gap-6">
-                    <button onclick="startVoiceCall()"
-                            class="flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 transition-all px-6 py-2 rounded-3xl text-sm font-medium">
-                        <span class="text-2xl">📞</span>
-                        <span>Appeler</span>
-                    </button>
-                    <button onclick="showChatOptions()" class="text-3xl text-zinc-400 hover:text-white">⋯</button>
+        <!-- Chat header -->
+        <div id="chat-header" class="h-14 flex items-center justify-between px-5 flex-shrink-0"
+             style="border-bottom:1px solid var(--border); background:var(--bg-panel)">
+            <div class="flex items-center gap-3">
+                <div id="header-avatar" class="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0"></div>
+                <div>
+                    <div id="header-name" class="font-semibold text-base"></div>
+                    <div id="header-subtitle" class="text-xs" style="color:#22c55e"></div>
                 </div>
             </div>
-
-            <div id="messages-area" class="flex-1 chat-bg overflow-y-auto p-6 space-y-8 tail-container" style="background-attachment: fixed;">
-                <!-- messages injected here -->
-            </div>
-
-            <div class="bg-[#1e2937] border-t border-zinc-800 p-4">
-                <div class="bg-[#334155] rounded-3xl flex items-center px-6 py-3">
-                    <button class="text-3xl text-zinc-400 hover:text-white mr-4">+</button>
-                    <input id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()"
-                           type="text" placeholder="Écris un message..."
-                           class="flex-1 bg-transparent focus:outline-none text-lg">
-                    <button onclick="sendMessage()" class="text-4xl text-green-500 hover:scale-110 transition">➤</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- RIGHT PANEL (group members) -->
-        <div id="right-panel" class="w-80 bg-[#1e2937] border-l border-zinc-800 hidden flex-col">
-            <div class="p-6 border-b border-zinc-800">
-                <div id="right-panel-title" class="font-semibold text-xl"></div>
-            </div>
-            <div id="members-list" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
-        </div>
-    </div>
-
-    <!-- MODALS -->
-    <div id="modal-add-friend" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-[#1e2937] rounded-3xl w-full max-w-md p-8">
-            <h2 class="text-2xl font-bold mb-6">Ajouter un ami</h2>
-            <input id="add-pseudo" type="text" placeholder="Pseudo exact"
-                   class="w-full bg-[#334155] rounded-2xl px-6 py-5 focus:outline-none focus:ring-2 focus:ring-green-500">
-            <div class="flex gap-4 mt-8">
-                <button onclick="hideModal('modal-add-friend')" class="flex-1 py-4 text-zinc-400 font-medium">Annuler</button>
-                <button onclick="sendFriendRequest()" class="flex-1 py-4 bg-green-500 rounded-2xl font-semibold">Envoyer demande</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-create-group" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-[#1e2937] rounded-3xl w-full max-w-lg p-8">
-            <h2 class="text-2xl font-bold mb-6">Nouveau groupe</h2>
-            <input id="group-name-input" type="text" placeholder="Nom du groupe" class="w-full bg-[#334155] rounded-2xl px-6 py-5 mb-6">
-           
-            <div class="mb-3 text-sm text-zinc-400">Ajouter des amis</div>
-            <input id="group-search-input" onkeyup="filterGroupFriends()" placeholder="Rechercher dans tes amis..."
-                   class="w-full bg-[#334155] rounded-2xl px-6 py-4 mb-4">
-           
-            <div id="group-friends-list" class="max-h-80 overflow-y-auto space-y-2"></div>
-           
-            <div class="flex gap-4 mt-10">
-                <button onclick="hideModal('modal-create-group')" class="flex-1 py-4 text-zinc-400">Annuler</button>
-                <button onclick="createNewGroup()" class="flex-1 py-4 bg-green-500 rounded-2xl font-semibold">Créer le groupe</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Profile Modal (avec édition) -->
-    <div id="modal-profile" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-[#1e2937] rounded-3xl w-full max-w-md p-8 relative">
-            <button onclick="hideModal('modal-profile')" 
-                    class="absolute top-5 right-6 text-4xl text-zinc-500 hover:text-white">×</button>
-
-            <div class="text-center mb-8">
-                <div id="profile-big-avatar" class="mx-auto w-32 h-32 rounded-3xl overflow-hidden border-4 border-green-500/40 mb-5 shadow-xl cursor-pointer" onclick="document.getElementById('avatar-input').click()">
-                    <img id="profile-avatar-img" src="" class="w-full h-full object-cover">
-                </div>
-                <input type="file" id="avatar-input" accept="image/*" class="hidden" onchange="changeMyAvatar(event)">
-                
-                <input id="edit-pseudo" type="text" class="bg-[#334155] text-3xl font-bold text-center w-3/4 mx-auto block rounded-xl py-2 px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500" disabled>
-                <input id="edit-pronouns" type="text" placeholder="Pronoms (ex: il/lui)" class="bg-transparent text-green-400 text-center w-full mb-4 focus:outline-none" disabled>
-            </div>
-
-            <textarea id="edit-bio" placeholder="Ta bio..." class="w-full h-28 bg-[#334155] rounded-2xl p-4 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-8" disabled></textarea>
-
-            <div class="flex gap-4">
-                <button onclick="toggleEditMode()" id="edit-btn" class="flex-1 py-4 bg-green-600/80 hover:bg-green-700 rounded-2xl font-medium transition">Modifier</button>
-                <button onclick="saveMyProfile()" id="save-btn" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-medium transition hidden">Enregistrer</button>
-            </div>
-
-            <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
-                <button onclick="blockCurrentProfile()" class="py-3 bg-red-900/30 text-red-300 rounded-xl hover:bg-red-900/50">Bloquer</button>
-                <button onclick="removeCurrentFriend()" class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl">Retirer ami</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- INCOMING CALL -->
-    <div id="incoming-call" class="hidden fixed inset-0 bg-black/95 z-[110] flex items-center justify-center">
-        <div class="text-center bg-[#1e2937] rounded-3xl p-10 w-full max-w-md shadow-2xl border border-zinc-700">
-            <div class="text-8xl mb-6 call-dot animate-pulse">📞</div>
-            <div id="caller-name" class="text-4xl font-bold mb-2"></div>
-            <div id="caller-subtitle" class="text-emerald-400 text-xl mb-10">t'appelle...</div>
-            
-            <div class="flex justify-center gap-12">
-                <button onclick="declineIncomingCall()" 
-                        class="w-24 h-24 bg-red-600/90 hover:bg-red-700 rounded-full flex items-center justify-center text-6xl transition active:scale-95 shadow-lg">
-                    ✕
-                </button>
-                <button onclick="acceptIncomingCall()" 
-                        class="w-24 h-24 bg-green-600/90 hover:bg-green-700 rounded-full flex items-center justify-center text-6xl transition active:scale-95 shadow-lg">
-                    ✔
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- VOICE CALL OVERLAY -->
-    <div id="voice-call-screen" class="hidden fixed inset-0 bg-gradient-to-b from-[#0f172a] to-black z-[100] flex flex-col">
-        <div class="flex-1 flex items-center justify-center p-6 md:p-12">
-            <div id="voice-participants" class="voice-grid w-full max-w-6xl"></div>
-        </div>
-        
-        <div class="h-24 md:h-32 bg-black/60 backdrop-blur-md flex items-center justify-center gap-10 md:gap-16 border-t border-zinc-800">
-            <button onclick="toggleMicrophone()" id="btn-mute" 
-                    class="flex flex-col items-center text-zinc-300 hover:text-white transition">
-                <div class="w-14 h-14 md:w-16 md:h-16 bg-zinc-900/80 rounded-2xl flex items-center justify-center text-3xl md:text-4xl mb-1">
-                    🎤
-                </div>
-                <span class="text-xs md:text-sm">Muet</span>
-            </button>
-            
-            <button onclick="endCall()" 
-                    class="flex flex-col items-center text-red-400 hover:text-red-300 transition">
-                <div class="w-16 h-16 md:w-20 md:h-20 bg-red-600/90 rounded-2xl flex items-center justify-center text-4xl md:text-5xl mb-1 shadow-lg">
-                    📴
-                </div>
-                <span class="text-xs md:text-sm font-medium">Quitter</span>
-            </button>
-            
-            <button onclick="toggleCameraInCall()" 
-                    class="flex flex-col items-center text-zinc-300 hover:text-white transition">
-                <div class="w-14 h-14 md:w-16 md:h-16 bg-zinc-900/80 rounded-2xl flex items-center justify-center text-3xl md:text-4xl mb-1">
-                    📹
-                </div>
-                <span class="text-xs md:text-sm">Caméra</span>
+            <button onclick="startVoiceCall()"
+                    class="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold transition hover:opacity-90"
+                    style="background:linear-gradient(135deg,#059669,#065f46); color:#fff">
+                <span>📞</span><span>Appeler</span>
             </button>
         </div>
+
+        <!-- Messages -->
+        <div id="messages-area" class="flex-1 chat-bg overflow-y-auto p-5 scroll"></div>
+
+        <!-- Typing indicator -->
+        <div id="typing-indicator" class="hidden flex items-center gap-2 px-6 py-2 flex-shrink-0"
+             style="background:var(--bg-deep); min-height:32px">
+            <div class="flex items-center gap-1">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+            </div>
+            <span id="typing-text" class="text-xs font-medium" style="color:var(--text-muted)">quelqu'un écrit...</span>
+        </div>
+
+        <!-- Input bar -->
+        <div class="flex-shrink-0 p-3" style="background:var(--bg-panel); border-top:1px solid var(--border)">
+            <div class="flex items-center gap-3 rounded-2xl px-4 py-2.5" style="background:var(--bg-input)">
+                <input id="msg-input"
+                       oninput="onTyping()"
+                       onkeypress="if(event.key==='Enter')sendMessage()"
+                       type="text" placeholder="Écris un message..."
+                       class="flex-1 bg-transparent focus:outline-none text-sm"
+                       style="color:var(--text)">
+                <button onclick="sendMessage()"
+                        class="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-lg transition hover:scale-110"
+                        style="background:linear-gradient(135deg,#22c55e,#16a34a)">➤</button>
+            </div>
+        </div>
     </div>
 
+    <!-- RIGHT PANEL -->
+    <div id="right-panel" class="hidden w-60 flex-col flex-shrink-0" style="background:var(--bg-panel); border-left:1px solid var(--border)">
+        <div class="p-4 flex-shrink-0" style="border-bottom:1px solid var(--border)">
+            <div class="font-semibold text-sm" style="color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em">Membres</div>
+        </div>
+        <div id="members-list" class="flex-1 overflow-y-auto p-3 space-y-1 scroll"></div>
+    </div>
+</div>
+
+<!-- ============================================================ MODALS -->
+
+<!-- Add Friend -->
+<div id="modal-add-friend" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop" style="background:rgba(0,0,0,.75)">
+    <div class="w-full max-w-md rounded-3xl p-8 shadow-2xl" style="background:var(--bg-card); border:1px solid var(--border)">
+        <h2 class="text-xl font-bold mb-6">Ajouter un ami</h2>
+        <input id="add-pseudo" type="text" placeholder="Pseudo exact" onkeypress="if(event.key==='Enter')sendFriendRequest()" class="input-field">
+        <div class="flex gap-3 mt-6">
+            <button onclick="hideModal('modal-add-friend')" class="flex-1 py-3 rounded-2xl font-medium text-sm transition hover:opacity-80" style="background:var(--bg-input); color:var(--text-muted)">Annuler</button>
+            <button onclick="sendFriendRequest()" class="btn-green flex-1 py-3">Envoyer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create Group -->
+<div id="modal-create-group" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop" style="background:rgba(0,0,0,.75)">
+    <div class="w-full max-w-lg rounded-3xl p-8 shadow-2xl" style="background:var(--bg-card); border:1px solid var(--border)">
+        <h2 class="text-xl font-bold mb-5">Nouveau groupe</h2>
+        <input id="group-name-input" type="text" placeholder="Nom du groupe" class="input-field mb-4">
+        <p class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:var(--text-muted)">Ajouter des amis</p>
+        <input id="group-search-input" oninput="filterGroupFriends()" placeholder="Rechercher..." class="input-field mb-3">
+        <div id="group-friends-list" class="max-h-56 overflow-y-auto space-y-1 scroll"></div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="hideModal('modal-create-group')" class="flex-1 py-3 rounded-2xl font-medium text-sm" style="background:var(--bg-input); color:var(--text-muted)">Annuler</button>
+            <button onclick="createNewGroup()" class="btn-green flex-1 py-3">Créer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="modal-profile" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 modal-backdrop" style="background:rgba(0,0,0,.8)">
+    <div class="w-full max-w-md rounded-3xl p-8 shadow-2xl relative" style="background:var(--bg-card); border:1px solid var(--border)">
+        <button onclick="hideModal('modal-profile')" class="absolute top-5 right-6 text-2xl leading-none transition hover:text-white" style="color:var(--text-muted)">×</button>
+
+        <!-- Avatar -->
+        <div class="text-center mb-6">
+            <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer" onclick="if(isOwnProfileModal) document.getElementById('avatar-file-input').click()">
+                <img id="profile-avatar-img" src="" class="w-full h-full object-cover rounded-2xl shadow-xl" style="border:2.5px solid #22c55e44" onerror="this.src='basic1.png'">
+                <div id="avatar-hover-overlay" class="hidden absolute inset-0 bg-black/60 rounded-2xl items-center justify-center text-2xl group-hover:flex">📷</div>
+            </div>
+            <input type="file" id="avatar-file-input" accept="image/*" class="hidden" onchange="changeMyAvatarFile(event)">
+        </div>
+
+        <!-- View mode -->
+        <div id="profile-view-mode">
+            <div class="text-center mb-4">
+                <div id="profile-view-pseudo" class="text-2xl font-bold mb-1"></div>
+                <div id="profile-view-pronouns" class="text-sm" style="color:#22c55e"></div>
+            </div>
+            <div id="profile-view-bio" class="rounded-2xl p-4 text-sm mb-5 min-h-12" style="background:var(--bg-input); color:var(--text-muted)"></div>
+
+            <!-- Own profile actions -->
+            <button onclick="enterProfileEditMode()" id="btn-edit-profile"
+                    class="hidden w-full py-3 rounded-2xl text-sm font-semibold mb-3 transition hover:opacity-90"
+                    style="background:var(--bg-input); color:#22c55e; border:1.5px solid #22c55e44">
+                ✏️ Modifier mon profil
+            </button>
+            <!-- Other user actions -->
+            <div id="other-profile-actions" class="hidden grid grid-cols-2 gap-3">
+                <button onclick="blockCurrentProfile()" class="py-3 rounded-xl text-sm transition hover:opacity-80" style="background:rgba(239,68,68,.15); color:#f87171">🚫 Bloquer</button>
+                <button onclick="removeCurrentFriend()" class="py-3 rounded-xl text-sm transition hover:opacity-80" style="background:var(--bg-input); color:var(--text-muted)">👋 Retirer ami</button>
+            </div>
+        </div>
+
+        <!-- Edit mode -->
+        <div id="profile-edit-mode" class="hidden space-y-3">
+            <div>
+                <label class="text-xs font-semibold uppercase tracking-wider mb-1 block" style="color:var(--text-muted)">Pseudo</label>
+                <input id="edit-pseudo" type="text" class="input-field">
+            </div>
+            <div>
+                <label class="text-xs font-semibold uppercase tracking-wider mb-1 block" style="color:var(--text-muted)">Pronoms</label>
+                <input id="edit-pronouns" type="text" placeholder="ex: il/lui, elle/elle…" class="input-field">
+            </div>
+            <div>
+                <label class="text-xs font-semibold uppercase tracking-wider mb-1 block" style="color:var(--text-muted)">Bio</label>
+                <textarea id="edit-bio" rows="3" class="input-field resize-none" style="min-height:80px"></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-semibold uppercase tracking-wider mb-1 block" style="color:var(--text-muted)">URL photo de profil</label>
+                <input id="edit-avatar-url" type="url" placeholder="https://..." class="input-field">
+                <p class="text-xs mt-1" style="color:var(--text-muted)">Ou clique sur ta photo pour en uploader une</p>
+            </div>
+            <div class="flex gap-3 pt-1">
+                <button onclick="cancelProfileEdit()" class="flex-1 py-3 rounded-2xl text-sm font-medium" style="background:var(--bg-input); color:var(--text-muted)">Annuler</button>
+                <button onclick="saveMyProfile()" class="btn-green flex-1 py-3">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ INCOMING CALL -->
+<div id="incoming-call" class="hidden fixed inset-0 z-[110] flex items-center justify-center p-4 modal-backdrop" style="background:rgba(0,0,0,.9)">
+    <div class="text-center rounded-3xl p-10 w-full max-w-sm shadow-2xl" style="background:var(--bg-card); border:1px solid var(--border)">
+        <div class="text-7xl mb-5 call-pulse">📞</div>
+        <div id="caller-name" class="text-3xl font-bold mb-1"></div>
+        <div class="text-sm mb-8" style="color:#22c55e">t'appelle…</div>
+        <div class="flex justify-center gap-12">
+            <button onclick="declineIncomingCall()"
+                    class="w-20 h-20 rounded-full flex items-center justify-center text-4xl transition hover:scale-110 active:scale-95"
+                    style="background:linear-gradient(135deg,#dc2626,#991b1b)">✕</button>
+            <button onclick="acceptIncomingCall()"
+                    class="w-20 h-20 rounded-full flex items-center justify-center text-4xl transition hover:scale-110 active:scale-95"
+                    style="background:linear-gradient(135deg,#22c55e,#16a34a)">✔</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ VOICE CALL -->
+<div id="voice-call-screen" class="hidden fixed inset-0 z-[100] flex flex-col items-center justify-center" style="background:linear-gradient(180deg,#0b1120,#000)">
+    <div class="text-center mb-12">
+        <div class="w-24 h-24 rounded-3xl mx-auto mb-5 overflow-hidden" style="border:2px solid #22c55e44">
+            <img id="call-avatar" src="" class="w-full h-full object-cover" onerror="this.src='basic1.png'">
+        </div>
+        <div id="call-with-name" class="text-3xl font-bold mb-2"></div>
+        <div class="text-sm" style="color:#22c55e">Appel en cours…</div>
+    </div>
+    <div class="flex gap-10">
+        <button onclick="toggleMicrophone()" id="btn-mute"
+                class="flex flex-col items-center gap-2 transition hover:scale-105">
+            <div id="mute-icon" class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style="background:var(--bg-card)">🎤</div>
+            <span class="text-xs font-medium" style="color:var(--text-muted)">Muet</span>
+        </button>
+        <button onclick="endCall()"
+                class="flex flex-col items-center gap-2 transition hover:scale-105">
+            <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#dc2626,#991b1b)">📴</div>
+            <span class="text-xs font-medium" style="color:var(--text-muted)">Quitter</span>
+        </button>
+    </div>
+</div>
+
+<!-- ============================================================ SCRIPT -->
 <script>
-// =============== FIREBASE ===============
+/* ────────── FIREBASE ────────── */
 const firebaseConfig = {
-  apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
-  authDomain: "kyky-c3471.firebaseapp.com",
-  databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "kyky-c3471",
-  storageBucket: "kyky-c3471.firebasestorage.app",
-  messagingSenderId: "658643330578",
-  appId: "1:658643330578:web:758dc26d5504a503e39acb"
+    apiKey: "AIzaSyDxDzLbCnqYYVknoyHMzbE0gB_SRVLpgiw",
+    authDomain: "kyky-c3471.firebaseapp.com",
+    databaseURL: "https://kyky-c3471-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "kyky-c3471",
+    storageBucket: "kyky-c3471.firebasestorage.app",
+    messagingSenderId: "658643330578",
+    appId: "1:658643330578:web:758dc26d5504a503e39acb"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.database();
+const db   = firebase.database();
 
-let currentUser = null;
-let currentChatId = null;
+/* ────────── CONSTANTS ────────── */
+const DEFAULT_AVATARS = ['basic1.png','basic2.png','basic3.png','basic4.png','basic5.png','basic6.png'];
+function randomAvatar() { return DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)]; }
+
+/* ────────── STATE ────────── */
+let currentUser    = null;
+let myData         = null;
+let currentChatId  = null;
 let currentChatIsGroup = false;
-let myFriends = {};
-let myGroups = {};
-let selectedGroupFriends = [];
-let peerConn = null;
-let localMediaStream = null;
-let remoteAudio = null;
-let isMutedGlobal = false;
-let currentCallId = null;
-let incomingCallRef = null;
+let currentChatTarget  = null;
+let myFriends      = {};
 
-// Sonnerie
-let ringAudio = null;
-let ringInterval = null;
+let msgListenerRef    = null;
+let typingListenerRef = null;
+let typingTimeout     = null;
 
-// Édition profil
-let isEditing = false;
+let isInitialLoad = true;
 
-// =============== AUTH ===============
+let peerConn       = null;
+let localStream    = null;
+let remoteAudio    = null;
+let isMuted        = false;
+let currentCallId  = null;
+let incomingCallId = null;
+let ringAudio      = null;
+
+let notifEnabled = localStorage.getItem('kychat_notif') === 'on';
+
+let groupFriendsCache = [];
+let selectedGroupMembers = [];
+
+let tempProfileUid = null;
+let isOwnProfileModal = false;
+
+/* ────────── AUTH LISTENER ────────── */
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
         document.getElementById('auth-screen').classList.add('hidden');
-        document.getElementById('app-screen').classList.remove('hidden');
+        const app = document.getElementById('app-screen');
+        app.classList.remove('hidden');
+        app.style.display = 'flex';
         initApp();
     } else {
+        currentUser = null;
+        myData = null;
         document.getElementById('auth-screen').classList.remove('hidden');
+        document.getElementById('app-screen').style.display = 'none';
         document.getElementById('app-screen').classList.add('hidden');
     }
 });
 
+/* ────────── REGISTER / LOGIN ────────── */
 async function registerUser() {
-    const email = document.getElementById('reg-email').value.trim();
+    const email  = document.getElementById('reg-email').value.trim();
     const pseudo = document.getElementById('reg-pseudo').value.trim().toLowerCase();
-    const pass = document.getElementById('reg-password').value;
-    if (!email || !pseudo || pass.length < 6) return alert("Tous les champs sont obligatoires (mot de passe ≥6 caractères)");
+    const pass   = document.getElementById('reg-password').value;
+    if (!email || !pseudo || pass.length < 6)
+        return showToast('❌ Remplis tous les champs (mdp ≥ 6 car.)');
     const taken = await db.ref(`usernames/${pseudo}`).once('value');
-    if (taken.exists()) return alert("Pseudo déjà pris !");
+    if (taken.exists()) return showToast('❌ Pseudo déjà pris');
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        const av = randomAvatar();
         await db.ref(`users/${cred.user.uid}`).set({
-            uid: cred.user.uid,
-            email: email,
-            pseudo: pseudo,
-            avatar: `https://i.pravatar.cc/150?u=${pseudo}`,
-            bio: "Salut, je suis nouveau sur KyChat !",
-            pronouns: "",
-            banned: false,
-            friends: {},
-            createdAt: Date.now()
+            uid: cred.user.uid, email, pseudo,
+            avatar: av, bio: 'Salut ! Je suis sur KyChat 👋',
+            pronouns: '', banned: false, friends: {}, createdAt: Date.now()
         });
         await db.ref(`usernames/${pseudo}`).set(cred.user.uid);
-        alert("Compte créé ! Tu es connecté.");
-    } catch (e) {
-        alert(e.message);
-    }
+    } catch (e) { showToast('❌ ' + e.message); }
 }
 
 async function loginUser() {
     const email = document.getElementById('login-email').value.trim();
-    const pass = document.getElementById('login-password').value;
+    const pass  = document.getElementById('login-password').value;
     try {
         await auth.signInWithEmailAndPassword(email, pass);
-    } catch (e) {
-        alert("Erreur : " + e.message);
-    }
+    } catch (e) { showToast('❌ ' + e.message); }
 }
 
 function switchTab(tab) {
-    document.getElementById('login-panel').classList.toggle('hidden', tab === 1);
-    document.getElementById('register-panel').classList.toggle('hidden', tab === 0);
-    document.getElementById('tab-login').classList.toggle('border-green-500', tab === 0);
-    document.getElementById('tab-login').classList.toggle('text-green-500', tab === 0);
-    document.getElementById('tab-register').classList.toggle('border-green-500', tab === 1);
-    document.getElementById('tab-register').classList.toggle('text-green-500', tab === 1);
+    document.getElementById('login-panel').classList.toggle('hidden', tab !== 0);
+    document.getElementById('register-panel').classList.toggle('hidden', tab !== 1);
+    document.getElementById('tab-login').className   = `flex-1 pb-3 text-base font-semibold transition-colors ${tab===0?'tab-on':'tab-off'}`;
+    document.getElementById('tab-register').className = `flex-1 pb-3 text-base font-semibold transition-colors ${tab===1?'tab-on':'tab-off'}`;
 }
 
-// =============== APP INIT ===============
+/* ────────── INIT ────────── */
 async function initApp() {
-    const userSnap = await db.ref(`users/${currentUser.uid}`).once('value');
-    const userData = userSnap.val();
-    document.getElementById('my-pseudo').textContent = userData.pseudo;
-    document.getElementById('my-avatar').src = userData.avatar;
-    loadFriendsAndConversations();
-    setupGlobalListeners();
-    setInterval(checkBanStatus, 5000);
+    const snap = await db.ref(`users/${currentUser.uid}`).once('value');
+    myData = snap.val();
+    myFriends = myData.friends || {};
+
+    document.getElementById('my-pseudo').textContent = myData.pseudo;
+    document.getElementById('my-avatar').src = myData.avatar;
+
+    updateNotifUI();
+    listenForFriendRequests();
+    listenFriendsRealtime();
+    listenGroupsRealtime();
+    listenIncomingCalls();
+    setInterval(checkBanStatus, 12000);
     checkBanStatus();
 }
 
-async function loadFriendsAndConversations() {
-    const userRef = db.ref(`users/${currentUser.uid}`);
-    const snap = await userRef.once('value');
-    const data = snap.val();
-    myFriends = data.friends || {};
-    renderAllConversations();
+/* ────────── REAL-TIME CONVOS ────────── */
+function listenFriendsRealtime() {
+    db.ref(`users/${currentUser.uid}/friends`).on('value', snap => {
+        myFriends = snap.val() || {};
+        renderConvList();
+    });
 }
 
-function renderAllConversations() {
+function listenGroupsRealtime() {
+    db.ref('groups').on('value', () => renderConvList());
+}
+
+async function renderConvList(filter = '') {
     const container = document.getElementById('conversations-list');
     container.innerHTML = '';
-    // DMs
-    Object.keys(myFriends).forEach(async uid => {
+    const q = filter.toLowerCase();
+
+    // DM friends
+    for (const uid of Object.keys(myFriends)) {
         const uSnap = await db.ref(`users/${uid}`).once('value');
         const u = uSnap.val();
-        if (!u) return;
-        const div = document.createElement('div');
-        div.className = `flex items-center gap-4 px-5 py-4 hover:bg-[#334155] rounded-3xl cursor-pointer nav-item ${currentChatId === getDMChatId(uid) ? 'bg-[#334155]' : ''}`;
-        div.innerHTML = `
-            <img src="${u.avatar}" class="w-12 h-12 rounded-2xl">
-            <div class="flex-1">
-                <div class="font-medium">${u.pseudo}</div>
-                <div class="text-xs text-emerald-400">En ligne</div>
-            </div>
-        `;
-        div.onclick = () => openChat(false, uid, u.pseudo, u.avatar);
-        container.appendChild(div);
-    });
-    // Groups
-    db.ref('groups').orderByChild(`members/${currentUser.uid}`).equalTo(true).once('value', snap => {
-        snap.forEach(child => {
-            const g = child.val();
-            const div = document.createElement('div');
-            div.className = `flex items-center gap-4 px-5 py-4 hover:bg-[#334155] rounded-3xl cursor-pointer nav-item ${currentChatId === child.key ? 'bg-[#334155]' : ''}`;
-            div.innerHTML = `
-                <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center text-2xl">👥</div>
-                <div class="flex-1">
-                    <div class="font-medium">${g.name}</div>
-                    <div class="text-xs text-zinc-400">${Object.keys(g.members).length} membres</div>
-                </div>
-            `;
-            div.onclick = () => openChat(true, child.key, g.name, null);
-            container.appendChild(div);
+        if (!u || (q && !u.pseudo.toLowerCase().includes(q))) continue;
+        const chatId = getDMId(uid);
+        const el = createConvEl({
+            avatarSrc: u.avatar,
+            name: u.pseudo,
+            sub: '<span style="color:#22c55e">● En ligne</span>',
+            active: chatId === currentChatId,
+            onClick: () => openChat(false, uid, u.pseudo, u.avatar)
         });
-    });
+        container.appendChild(el);
+    }
+
+    // Groups
+    const gSnap = await db.ref('groups').once('value');
+    if (gSnap.exists()) {
+        gSnap.forEach(child => {
+            const g = child.val();
+            if (!g.members || !g.members[currentUser.uid]) return;
+            if (q && !g.name.toLowerCase().includes(q)) return;
+            const el = createConvEl({
+                isGroup: true,
+                name: g.name,
+                sub: `${Object.keys(g.members).length} membres`,
+                active: child.key === currentChatId,
+                onClick: () => openChat(true, child.key, g.name, null)
+            });
+            container.appendChild(el);
+        });
+    }
 }
 
-function getDMChatId(otherUid) {
-    return [currentUser.uid, otherUid].sort().join('_');
+function createConvEl({ avatarSrc, name, sub, active, onClick, isGroup = false }) {
+    const div = document.createElement('div');
+    div.className = `nav-item flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer transition ${active ? 'nav-active' : ''}`;
+    div.style = active ? '' : 'background:transparent';
+    div.onmouseenter = () => { if (!active) div.style.background = 'var(--bg-card)'; };
+    div.onmouseleave = () => { if (!active) div.style.background = 'transparent'; };
+    const avHtml = isGroup
+        ? `<div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">👥</div>`
+        : `<img src="${avatarSrc}" class="w-11 h-11 rounded-xl object-cover flex-shrink-0" onerror="this.src='basic1.png'">`;
+    div.innerHTML = `
+        ${avHtml}
+        <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm truncate">${esc(name)}</div>
+            <div class="text-xs mt-0.5">${sub}</div>
+        </div>`;
+    div.onclick = onClick;
+    return div;
 }
 
-// =============== CHAT ===============
+function filterConversations() {
+    renderConvList(document.getElementById('search-input').value);
+}
+
+function getDMId(uid) {
+    return [currentUser.uid, uid].sort().join('_');
+}
+
+/* ────────── OPEN CHAT ────────── */
 async function openChat(isGroup, id, name, avatarUrl) {
-    currentChatId = isGroup ? id : getDMChatId(id);
+    // Detach old listeners
+    if (msgListenerRef && currentChatId) {
+        db.ref(`messages/${currentChatId}`).off('child_added', msgListenerRef);
+        msgListenerRef = null;
+    }
+    if (typingListenerRef && currentChatId) {
+        db.ref(`typing/${currentChatId}`).off('value', typingListenerRef);
+        typingListenerRef = null;
+        db.ref(`typing/${currentChatId}/${currentUser.uid}`).remove();
+    }
+
+    currentChatId = isGroup ? id : getDMId(id);
     currentChatIsGroup = isGroup;
+    currentChatTarget  = id;
+
     document.getElementById('header-name').textContent = name;
+    document.getElementById('call-with-name').textContent = name;
+
     const avContainer = document.getElementById('header-avatar');
     avContainer.innerHTML = avatarUrl
-        ? `<img src="${avatarUrl}" class="w-9 h-9 rounded-2xl object-cover">`
-        : `<div class="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center text-2xl">👥</div>`;
-    document.getElementById('header-subtitle').textContent = isGroup ? "Groupe" : "En ligne";
+        ? `<img src="${avatarUrl}" class="w-9 h-9 rounded-xl object-cover" onerror="this.src='basic1.png'">`
+        : `<div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">👥</div>`;
+
+    document.getElementById('header-subtitle').textContent = isGroup ? 'Groupe' : 'En ligne';
+
+    const callAv = document.getElementById('call-avatar');
+    callAv.src = avatarUrl || 'basic1.png';
+
+    const rp = document.getElementById('right-panel');
     if (isGroup) {
-        document.getElementById('right-panel').classList.remove('hidden');
+        rp.classList.remove('hidden');
+        rp.style.display = 'flex';
         loadGroupMembers(id);
     } else {
-        document.getElementById('right-panel').classList.add('hidden');
+        rp.classList.add('hidden');
+        rp.style.display = 'none';
     }
-    loadChatMessages();
+
+    loadMessages();
+    startTypingListener();
+    renderConvList(document.getElementById('search-input').value);
 }
 
-function loadChatMessages() {
+/* ────────── MESSAGES ────────── */
+function loadMessages() {
     const area = document.getElementById('messages-area');
     area.innerHTML = '';
-    db.ref(`messages/${currentChatId}`).limitToLast(100).on('child_added', snap => {
-        const msg = snap.val();
-        const isMine = msg.sender === currentUser.uid;
-        const bubble = document.createElement('div');
-        bubble.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
-        bubble.innerHTML = `
-            <div class="${isMine ? 'my-bubble text-black' : 'message-bubble bg-[#334155]'}">
-                <div class="text-xs opacity-70 mb-1">${msg.senderPseudo} • ${new Date(msg.time).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</div>
-                <div class="text-[17px] leading-relaxed">${msg.text}</div>
-            </div>
-        `;
-        area.appendChild(bubble);
-        area.scrollTop = area.scrollHeight;
+    isInitialLoad = true;
+
+    msgListenerRef = db.ref(`messages/${currentChatId}`).limitToLast(100).on('child_added', snap => {
+        appendMessage(snap.val());
+        setTimeout(() => { isInitialLoad = false; }, 600);
     });
+}
+
+function appendMessage(msg) {
+    const area  = document.getElementById('messages-area');
+    const isMine = msg.sender === currentUser.uid;
+    const isNew  = msg.time > Date.now() - 6000;
+
+    // Notification for messages from others
+    if (!isInitialLoad && !isMine && isNew && notifEnabled) {
+        pushNotification(msg.senderPseudo, msg.text);
+    }
+
+    const row = document.createElement('div');
+    row.className = `bubble-row ${isMine ? 'mine' : ''}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${isMine ? 'mine' : 'theirs'} bubble-animate`;
+    bubble.innerHTML = `
+        <div class="meta">${esc(msg.senderPseudo)} · ${fmtTime(msg.time)}</div>
+        <div>${esc(msg.text)}</div>`;
+
+    row.appendChild(bubble);
+    area.appendChild(row);
+    area.scrollTop = area.scrollHeight;
 }
 
 async function sendMessage() {
     const input = document.getElementById('msg-input');
-    const text = input.value.trim();
+    const text  = input.value.trim();
     if (!text || !currentChatId) return;
+
     await db.ref(`messages/${currentChatId}`).push({
         sender: currentUser.uid,
-        senderPseudo: document.getElementById('my-pseudo').textContent,
-        text: text,
+        senderPseudo: myData?.pseudo || '',
+        text,
         time: Date.now()
     });
     input.value = '';
+    if (typingTimeout) clearTimeout(typingTimeout);
+    db.ref(`typing/${currentChatId}/${currentUser.uid}`).remove();
 }
 
-// =============== FRIENDS ===============
+/* ────────── TYPING ────────── */
+function onTyping() {
+    if (!currentChatId) return;
+    db.ref(`typing/${currentChatId}/${currentUser.uid}`).set({
+        pseudo: myData?.pseudo || '',
+        time: Date.now()
+    });
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        db.ref(`typing/${currentChatId}/${currentUser.uid}`).remove();
+    }, 2600);
+}
+
+function startTypingListener() {
+    typingListenerRef = db.ref(`typing/${currentChatId}`).on('value', snap => {
+        const data = snap.val() || {};
+        const others = Object.entries(data)
+            .filter(([uid]) => uid !== currentUser.uid)
+            .map(([, d]) => d.pseudo);
+        const indicator = document.getElementById('typing-indicator');
+        const text = document.getElementById('typing-text');
+        if (others.length) {
+            text.textContent = others.length === 1
+                ? `${others[0]} écrit...`
+                : `${others.join(', ')} écrivent...`;
+            indicator.classList.remove('hidden');
+        } else {
+            indicator.classList.add('hidden');
+        }
+    });
+}
+
+/* ────────── NOTIFICATIONS ────────── */
+function updateNotifUI() {
+    const btn = document.getElementById('notif-btn');
+    const active = notifEnabled && Notification.permission === 'granted';
+    btn.classList.toggle('notif-active',   active);
+    btn.classList.toggle('notif-inactive', !active);
+    btn.title = active ? 'Notifications activées — cliquer pour désactiver' : 'Activer les notifications';
+    if (!active && notifEnabled) {
+        // Permission was revoked externally
+        notifEnabled = false;
+        localStorage.setItem('kychat_notif', 'off');
+    }
+}
+
+async function toggleNotifications() {
+    if (notifEnabled && Notification.permission === 'granted') {
+        notifEnabled = false;
+        localStorage.setItem('kychat_notif', 'off');
+        updateNotifUI();
+        showToast('🔕 Notifications désactivées');
+    } else {
+        if (Notification.permission === 'denied') {
+            showToast('❌ Bloquées dans les réglages du navigateur');
+            return;
+        }
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+            notifEnabled = true;
+            localStorage.setItem('kychat_notif', 'on');
+            updateNotifUI();
+            new Notification('KyChat 🟢', {
+                body: 'Les notifications sont activées !',
+                icon: myData?.avatar?.startsWith('http') ? myData.avatar : ''
+            });
+            showToast('🔔 Notifications activées');
+        } else {
+            showToast('❌ Permission refusée');
+        }
+    }
+}
+
+function pushNotification(sender, message) {
+    if (!notifEnabled || Notification.permission !== 'granted') return;
+    try {
+        const body = message.length > 80 ? message.slice(0,80) + '…' : message;
+        new Notification(`💬 ${sender}`, { body, tag: 'kychat-msg' });
+    } catch (_) {}
+}
+
+/* ────────── FRIEND REQUESTS ────────── */
+function listenForFriendRequests() {
+    db.ref(`friendRequests/${currentUser.uid}`).on('value', snap => {
+        const reqs = snap.val() || {};
+        const list = Object.entries(reqs);
+        const badge = document.getElementById('request-count');
+        if (list.length) {
+            badge.textContent = list.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+        renderRequests(list);
+    });
+}
+
+function renderRequests(list) {
+    const c = document.getElementById('requests-list');
+    c.innerHTML = '';
+    list.forEach(([uid, data]) => {
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-2 rounded-2xl px-3 py-2.5 mb-1';
+        el.style.background = 'var(--bg-card)';
+        el.innerHTML = `
+            <span class="text-xs font-semibold flex-1 truncate">${esc(data.fromPseudo)}</span>
+            <button onclick="acceptRequest('${uid}');event.stopPropagation()"
+                    class="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                    style="background:#22c55e">✓</button>
+            <button onclick="declineRequest('${uid}');event.stopPropagation()"
+                    class="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                    style="background:#dc2626">✗</button>`;
+        c.appendChild(el);
+    });
+}
+
+async function acceptRequest(uid) {
+    await db.ref(`users/${currentUser.uid}/friends/${uid}`).set(true);
+    await db.ref(`users/${uid}/friends/${currentUser.uid}`).set(true);
+    await db.ref(`friendRequests/${currentUser.uid}/${uid}`).remove();
+    // listenFriendsRealtime will auto-update
+}
+async function declineRequest(uid) {
+    await db.ref(`friendRequests/${currentUser.uid}/${uid}`).remove();
+}
+
 function showAddFriendModal() {
+    document.getElementById('add-pseudo').value = '';
     document.getElementById('modal-add-friend').classList.remove('hidden');
-    document.getElementById('add-pseudo').focus();
+    setTimeout(() => document.getElementById('add-pseudo').focus(), 80);
 }
 
 async function sendFriendRequest() {
     const pseudo = document.getElementById('add-pseudo').value.trim().toLowerCase();
     if (!pseudo) return;
     const snap = await db.ref(`usernames/${pseudo}`).once('value');
-    if (!snap.exists()) return alert("Pseudo introuvable");
+    if (!snap.exists()) return showToast('❌ Pseudo introuvable');
     const targetUid = snap.val();
-    if (targetUid === currentUser.uid) return alert("Tu ne peux pas t'ajouter toi-même");
+    if (targetUid === currentUser.uid) return showToast('❌ Tu ne peux pas t\'ajouter toi-même');
     await db.ref(`friendRequests/${targetUid}/${currentUser.uid}`).set({
         fromUid: currentUser.uid,
-        fromPseudo: document.getElementById('my-pseudo').textContent,
+        fromPseudo: myData?.pseudo || '',
         time: Date.now()
     });
     hideModal('modal-add-friend');
-    alert("Demande envoyée !");
+    showToast('✅ Demande envoyée !');
 }
 
-function setupGlobalListeners() {
-    db.ref(`friendRequests/${currentUser.uid}`).on('value', snap => {
-        const reqs = snap.val() || {};
-        renderFriendRequests(Object.entries(reqs));
-    });
-}
-
-function renderFriendRequests(reqList) {
-    const container = document.getElementById('requests-list');
-    container.innerHTML = '';
-    document.getElementById('request-count').textContent = reqList.length;
-    reqList.forEach(([fromUid, data]) => {
-        const div = document.createElement('div');
-        div.className = "flex items-center justify-between bg-[#334155] rounded-2xl p-4";
-        div.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="text-lg">👤</div>
-                <div>
-                    <div class="font-medium">${data.fromPseudo}</div>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="acceptFriendRequest('${fromUid}');event.stopImmediatePropagation()" class="bg-green-500 px-5 py-2 rounded-xl text-sm">Accepter</button>
-                <button onclick="declineFriendRequest('${fromUid}');event.stopImmediatePropagation()" class="bg-red-500 px-5 py-2 rounded-xl text-sm">Refuser</button>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-async function acceptFriendRequest(fromUid) {
-    await db.ref(`users/${currentUser.uid}/friends/${fromUid}`).set(true);
-    await db.ref(`users/${fromUid}/friends/${currentUser.uid}`).set(true);
-    await db.ref(`friendRequests/${currentUser.uid}/${fromUid}`).remove();
-    loadFriendsAndConversations();
-}
-
-async function declineFriendRequest(fromUid) {
-    await db.ref(`friendRequests/${currentUser.uid}/${fromUid}`).remove();
-}
-
-// =============== GROUPS ===============
+/* ────────── GROUPS ────────── */
 function showCreateGroupModal() {
+    document.getElementById('group-name-input').value = '';
+    document.getElementById('group-search-input').value = '';
+    selectedGroupMembers = [];
     document.getElementById('modal-create-group').classList.remove('hidden');
-    selectedGroupFriends = [];
-    renderGroupFriendSelector();
+    loadGroupFriendsSelector();
 }
 
-async function renderGroupFriendSelector() {
-    const container = document.getElementById('group-friends-list');
-    container.innerHTML = '';
+async function loadGroupFriendsSelector() {
+    groupFriendsCache = [];
     for (const uid of Object.keys(myFriends)) {
-        const uSnap = await db.ref(`users/${uid}`).once('value');
-        const u = uSnap.val();
-        if (!u) continue;
-        const el = document.createElement('div');
-        el.className = `flex items-center gap-4 p-4 hover:bg-[#334155] rounded-2xl cursor-pointer ${selectedGroupFriends.includes(uid) ? 'bg-green-500/20' : ''}`;
-        el.innerHTML = `
-            <img src="${u.avatar}" class="w-10 h-10 rounded-2xl">
-            <span class="font-medium">${u.pseudo}</span>
-        `;
-        el.onclick = () => {
-            if (selectedGroupFriends.includes(uid)) {
-                selectedGroupFriends = selectedGroupFriends.filter(x => x !== uid);
-            } else {
-                selectedGroupFriends.push(uid);
-            }
-            renderGroupFriendSelector();
-        };
-        container.appendChild(el);
+        const s = await db.ref(`users/${uid}`).once('value');
+        const u = s.val();
+        if (u) groupFriendsCache.push({ uid, ...u });
     }
+    renderGroupFriendsList(groupFriendsCache);
+}
+
+function filterGroupFriends() {
+    const q = document.getElementById('group-search-input').value.toLowerCase();
+    renderGroupFriendsList(groupFriendsCache.filter(u => u.pseudo.toLowerCase().includes(q)));
+}
+
+function renderGroupFriendsList(friends) {
+    const c = document.getElementById('group-friends-list');
+    c.innerHTML = '';
+    friends.forEach(u => {
+        const selected = selectedGroupMembers.includes(u.uid);
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition';
+        el.style.background = selected ? 'rgba(34,197,94,.12)' : 'transparent';
+        el.onmouseenter = () => { if (!selected) el.style.background = 'var(--bg-card)'; };
+        el.onmouseleave = () => { el.style.background = selected ? 'rgba(34,197,94,.12)' : 'transparent'; };
+        el.innerHTML = `
+            <img src="${u.avatar}" class="w-9 h-9 rounded-xl object-cover" onerror="this.src='basic1.png'">
+            <span class="flex-1 text-sm font-semibold">${esc(u.pseudo)}</span>
+            <span class="text-sm">${selected ? '✅' : '⭕'}</span>`;
+        el.onclick = () => {
+            if (selected) selectedGroupMembers = selectedGroupMembers.filter(x => x !== u.uid);
+            else selectedGroupMembers.push(u.uid);
+            renderGroupFriendsList(friends);
+        };
+        c.appendChild(el);
+    });
 }
 
 async function createNewGroup() {
     const name = document.getElementById('group-name-input').value.trim();
-    if (!name || selectedGroupFriends.length === 0) return alert("Nom + au moins 1 ami");
-    const groupId = "g_" + Date.now();
-    const membersObj = {};
-    membersObj[currentUser.uid] = true;
-    selectedGroupFriends.forEach(uid => membersObj[uid] = true);
-    await db.ref(`groups/${groupId}`).set({
-        name: name,
-        owner: currentUser.uid,
-        members: membersObj,
-        created: Date.now()
+    if (!name || !selectedGroupMembers.length) return showToast('❌ Nom + au moins 1 ami');
+    const gid = 'g_' + Date.now();
+    const members = { [currentUser.uid]: true };
+    selectedGroupMembers.forEach(uid => members[uid] = true);
+    await db.ref(`groups/${gid}`).set({
+        name, owner: currentUser.uid, members, created: Date.now()
     });
     hideModal('modal-create-group');
-    alert("Groupe créé !");
-    loadFriendsAndConversations();
+    showToast('✅ Groupe créé !');
 }
 
-async function loadGroupMembers(groupId) {
-    const container = document.getElementById('members-list');
-    container.innerHTML = '<div class="text-xs text-zinc-400 px-4">MEMBRES</div>';
-    const gSnap = await db.ref(`groups/${groupId}`).once('value');
-    const group = gSnap.val();
-    Object.keys(group.members || {}).forEach(async uid => {
-        const uSnap = await db.ref(`users/${uid}`).once('value');
-        const u = uSnap.val();
-        if (!u) return;
-        const isOwner = uid === group.owner;
-        const div = document.createElement('div');
-        div.className = "flex items-center gap-4 p-3 hover:bg-[#334155] rounded-2xl";
-        div.innerHTML = `
-            <img src="${u.avatar}" class="w-10 h-10 rounded-2xl">
-            <div class="flex-1 flex items-center gap-2">
-                <span>${u.pseudo}</span>
-                ${isOwner ? '<span class="text-amber-400 text-sm">👑</span>' : ''}
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-// =============== WEBRTC + SONNERIE ===============
-async function startVoiceCall() {
-    if (!currentChatId) return alert("Ouvre une conversation d'abord");
-    currentCallId = "call_" + Date.now();
-    try {
-        localMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        document.getElementById('voice-call-screen').classList.remove('hidden');
-        if (!currentChatIsGroup) {
-            const otherUid = currentChatId.split('_').find(u => u !== currentUser.uid);
-            initPeerConnection(otherUid);
-            sendOffer(otherUid);
-        } else {
-            alert("Appel de groupe prêt à être étendu (mesh WebRTC) – pour l’instant 1:1 uniquement");
-        }
-    } catch (err) {
-        alert("Impossible d'accéder au micro : " + err.message);
+async function loadGroupMembers(gid) {
+    const c = document.getElementById('members-list');
+    c.innerHTML = '';
+    const snap = await db.ref(`groups/${gid}`).once('value');
+    const g = snap.val();
+    for (const uid of Object.keys(g.members || {})) {
+        const us = await db.ref(`users/${uid}`).once('value');
+        const u = us.val();
+        if (!u) continue;
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-3 p-2 rounded-xl cursor-pointer transition';
+        el.style.background = 'transparent';
+        el.onmouseenter = () => el.style.background = 'var(--bg-input)';
+        el.onmouseleave = () => el.style.background = 'transparent';
+        el.innerHTML = `
+            <img src="${u.avatar}" class="w-8 h-8 rounded-xl object-cover" onerror="this.src='basic1.png'">
+            <span class="text-sm flex-1 truncate">${esc(u.pseudo)}</span>
+            ${uid === g.owner ? '<span class="text-xs">👑</span>' : ''}`;
+        c.appendChild(el);
     }
 }
 
-function initPeerConnection(targetUid) {
-    peerConn = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
-    localMediaStream.getTracks().forEach(track => peerConn.addTrack(track, localMediaStream));
-    peerConn.ontrack = e => {
-        if (!remoteAudio) {
-            remoteAudio = new Audio();
-            remoteAudio.autoplay = true;
+/* ────────── PROFILE ────────── */
+function showMyProfile() {
+    openProfileModal(currentUser.uid, true);
+}
+
+async function openProfileModal(uid, isMe = false) {
+    const snap = await db.ref(`users/${uid}`).once('value');
+    const u = snap.val();
+    if (!u) return;
+
+    tempProfileUid = uid;
+    isOwnProfileModal = isMe || uid === currentUser.uid;
+
+    document.getElementById('profile-avatar-img').src = u.avatar;
+    document.getElementById('profile-view-pseudo').textContent = u.pseudo;
+    document.getElementById('profile-view-pronouns').textContent = u.pronouns || '';
+    document.getElementById('profile-view-bio').textContent = u.bio || 'Pas de bio.';
+
+    // Avatar hover overlay
+    document.getElementById('avatar-hover-overlay').style.display = isOwnProfileModal ? '' : 'none';
+
+    // Own vs other actions
+    document.getElementById('btn-edit-profile').classList.toggle('hidden', !isOwnProfileModal);
+    const otherAct = document.getElementById('other-profile-actions');
+    otherAct.classList.toggle('hidden', isOwnProfileModal);
+    otherAct.style.display = isOwnProfileModal ? 'none' : 'grid';
+
+    // Reset to view mode
+    document.getElementById('profile-view-mode').classList.remove('hidden');
+    document.getElementById('profile-edit-mode').classList.add('hidden');
+
+    document.getElementById('modal-profile').classList.remove('hidden');
+}
+
+function enterProfileEditMode() {
+    document.getElementById('edit-pseudo').value  = document.getElementById('profile-view-pseudo').textContent;
+    document.getElementById('edit-pronouns').value = document.getElementById('profile-view-pronouns').textContent;
+    const bio = document.getElementById('profile-view-bio').textContent;
+    document.getElementById('edit-bio').value     = bio === 'Pas de bio.' ? '' : bio;
+    document.getElementById('edit-avatar-url').value = '';
+    document.getElementById('profile-view-mode').classList.add('hidden');
+    document.getElementById('profile-edit-mode').classList.remove('hidden');
+}
+
+function cancelProfileEdit() {
+    document.getElementById('profile-view-mode').classList.remove('hidden');
+    document.getElementById('profile-edit-mode').classList.add('hidden');
+}
+
+async function saveMyProfile() {
+    const pseudo    = document.getElementById('edit-pseudo').value.trim();
+    const pronouns  = document.getElementById('edit-pronouns').value.trim();
+    const bio       = document.getElementById('edit-bio').value.trim();
+    const avatarUrl = document.getElementById('edit-avatar-url').value.trim();
+
+    if (!pseudo) return showToast('❌ Le pseudo ne peut pas être vide');
+
+    const updates = { pseudo, pronouns, bio };
+    if (avatarUrl) updates.avatar = avatarUrl;
+
+    try {
+        const oldPseudo = myData.pseudo.toLowerCase();
+        await db.ref(`users/${currentUser.uid}`).update(updates);
+        if (pseudo.toLowerCase() !== oldPseudo) {
+            await db.ref(`usernames/${oldPseudo}`).remove();
+            await db.ref(`usernames/${pseudo.toLowerCase()}`).set(currentUser.uid);
         }
+        myData = { ...myData, ...updates };
+        document.getElementById('my-pseudo').textContent = pseudo;
+        if (avatarUrl) {
+            document.getElementById('my-avatar').src = avatarUrl;
+            document.getElementById('profile-avatar-img').src = avatarUrl;
+        }
+        document.getElementById('profile-view-pseudo').textContent = pseudo;
+        document.getElementById('profile-view-pronouns').textContent = pronouns;
+        document.getElementById('profile-view-bio').textContent = bio || 'Pas de bio.';
+        cancelProfileEdit();
+        showToast('✅ Profil mis à jour !');
+    } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function changeMyAvatarFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async e => {
+        const b64 = e.target.result;
+        await db.ref(`users/${currentUser.uid}/avatar`).set(b64);
+        document.getElementById('profile-avatar-img').src = b64;
+        document.getElementById('my-avatar').src = b64;
+        if (myData) myData.avatar = b64;
+        showToast('📷 Photo mise à jour !');
+    };
+    reader.readAsDataURL(file);
+}
+
+function blockCurrentProfile() {
+    if (!confirm('Bloquer cet utilisateur ?')) return;
+    db.ref(`users/${currentUser.uid}/blocked/${tempProfileUid}`).set(true);
+    hideModal('modal-profile');
+    showToast('🚫 Utilisateur bloqué');
+}
+
+function removeCurrentFriend() {
+    if (!confirm('Retirer des amis ?')) return;
+    db.ref(`users/${currentUser.uid}/friends/${tempProfileUid}`).remove();
+    db.ref(`users/${tempProfileUid}/friends/${currentUser.uid}`).remove();
+    hideModal('modal-profile');
+    showToast('👋 Ami retiré');
+}
+
+/* ────────── WEBRTC ────────── */
+async function startVoiceCall() {
+    if (!currentChatId) return showToast('❌ Ouvre une conversation d\'abord');
+    try {
+        localStream   = await navigator.mediaDevices.getUserMedia({ audio: true });
+        currentCallId = 'call_' + Date.now();
+        document.getElementById('voice-call-screen').classList.remove('hidden');
+        if (!currentChatIsGroup) {
+            const otherUid = currentChatId.split('_').find(u => u !== currentUser.uid);
+            setupPeer(otherUid);
+            doOffer(otherUid);
+        }
+    } catch (e) { showToast('❌ Micro inaccessible : ' + e.message); }
+}
+
+function setupPeer(targetUid) {
+    peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+    peerConn.ontrack = e => {
+        if (!remoteAudio) { remoteAudio = new Audio(); remoteAudio.autoplay = true; }
         remoteAudio.srcObject = e.streams[0];
     };
     peerConn.onicecandidate = e => {
-        if (e.candidate) {
-            db.ref(`signaling/${currentCallId}/candidates/${currentUser.uid}`).push(e.candidate.toJSON());
-        }
+        if (e.candidate) db.ref(`signaling/${currentCallId}/candidates/${currentUser.uid}`).push(e.candidate.toJSON());
     };
 }
 
-async function sendOffer(targetUid) {
+async function doOffer(targetUid) {
     const offer = await peerConn.createOffer();
     await peerConn.setLocalDescription(offer);
     await db.ref(`signaling/${currentCallId}`).set({
-        caller: currentUser.uid,
-        target: targetUid,
+        caller: currentUser.uid, target: targetUid,
         offer: { type: offer.type, sdp: offer.sdp }
     });
-    listenForAnswer(targetUid);
-}
-
-function listenForAnswer(targetUid) {
     db.ref(`signaling/${currentCallId}/answer`).on('value', async snap => {
         const ans = snap.val();
-        if (ans && peerConn.signalingState === "have-local-offer") {
+        if (ans && peerConn?.signalingState === 'have-local-offer')
             await peerConn.setRemoteDescription(new RTCSessionDescription(ans));
-        }
     });
     db.ref(`signaling/${currentCallId}/candidates/${targetUid}`).on('child_added', snap => {
         if (peerConn) peerConn.addIceCandidate(new RTCIceCandidate(snap.val()));
     });
 }
 
-function playRingTone() {
-    if (ringAudio) ringAudio.pause();
-    ringAudio = new Audio('ring.mp3');
-    ringAudio.loop = false;
-    ringAudio.volume = 0.45;
-    ringAudio.play().catch(e => console.log("Son bloqué", e));
-
-    if (ringInterval) clearInterval(ringInterval);
-    ringInterval = setInterval(() => {
-        if (!document.getElementById('incoming-call').classList.contains('hidden')) {
-            ringAudio.currentTime = 0;
-            ringAudio.play().catch(()=>{});
-        } else {
-            clearInterval(ringInterval);
-            ringInterval = null;
-        }
-    }, 4200);
-}
-
-function stopRingTone() {
-    if (ringAudio) {
-        ringAudio.pause();
-        ringAudio.currentTime = 0;
-    }
-    if (ringInterval) {
-        clearInterval(ringInterval);
-        ringInterval = null;
-    }
-}
-
-db.ref('signaling').on('child_added', snap => {
-    const callData = snap.val();
-    if (callData.target !== currentUser.uid) return;
-    
-    incomingCallRef = snap.key;
-    
-    db.ref(`users/${callData.caller}`).once('value').then(s => {
-        const caller = s.val();
-        document.getElementById('caller-name').textContent = caller?.pseudo || "Inconnu";
-        document.getElementById('caller-subtitle').textContent = caller?.pseudo ? `${caller.pseudo} t'appelle...` : "t'appelle...";
+function listenIncomingCalls() {
+    db.ref('signaling').on('child_added', async snap => {
+        const d = snap.val();
+        if (!d || d.target !== currentUser.uid) return;
+        incomingCallId = snap.key;
+        const cs = await db.ref(`users/${d.caller}`).once('value');
+        const caller = cs.val();
+        document.getElementById('caller-name').textContent = caller?.pseudo || 'Inconnu';
+        document.getElementById('incoming-call').classList.remove('hidden');
+        playRing();
     });
-
-    document.getElementById('incoming-call').classList.remove('hidden');
-    playRingTone();
-});
+}
 
 function acceptIncomingCall() {
     document.getElementById('incoming-call').classList.add('hidden');
-    stopRingTone();
+    stopRing();
     document.getElementById('voice-call-screen').classList.remove('hidden');
-    
-    navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
-        localMediaStream = stream;
-        // Logique de réponse WebRTC simplifiée ici (à compléter selon besoins)
-        alert("Appel accepté – WebRTC 1:1 fonctionnel");
-    }).catch(err => {
-        alert("Micro inaccessible : " + err.message);
-        endCall();
-    });
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(s => { localStream = s; showToast('📞 Appel connecté'); })
+        .catch(e => { showToast('❌ Micro : ' + e.message); endCall(); });
 }
 
 function declineIncomingCall() {
     document.getElementById('incoming-call').classList.add('hidden');
-    stopRingTone();
-    if (incomingCallRef) db.ref(`signaling/${incomingCallRef}`).remove();
+    stopRing();
+    if (incomingCallId) db.ref(`signaling/${incomingCallId}`).remove();
 }
 
 function toggleMicrophone() {
-    isMutedGlobal = !isMutedGlobal;
-    if (localMediaStream) localMediaStream.getAudioTracks()[0].enabled = !isMutedGlobal;
-    document.getElementById('btn-mute').style.color = isMutedGlobal ? "#ef4444" : "#22c55e";
-}
-
-function toggleCameraInCall() {
-    alert("Caméra activée (ajoute video:true dans getUserMedia pour implémenter)");
+    isMuted = !isMuted;
+    if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+    document.getElementById('mute-icon').textContent = isMuted ? '🔇' : '🎤';
+    document.getElementById('mute-icon').style.background = isMuted ? 'rgba(220,38,38,.3)' : 'var(--bg-card)';
 }
 
 function endCall() {
-    if (peerConn) peerConn.close();
-    if (localMediaStream) localMediaStream.getTracks().forEach(t => t.stop());
-    if (remoteAudio) remoteAudio.pause();
+    if (peerConn)   { peerConn.close(); peerConn = null; }
+    if (localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+    if (remoteAudio){ remoteAudio.pause(); remoteAudio = null; }
     document.getElementById('voice-call-screen').classList.add('hidden');
-    if (currentCallId) db.ref(`signaling/${currentCallId}`).remove();
+    if (currentCallId) { db.ref(`signaling/${currentCallId}`).remove(); currentCallId = null; }
+    document.getElementById('mute-icon').textContent = '🎤';
+    document.getElementById('mute-icon').style.background = 'var(--bg-card)';
+    isMuted = false;
 }
 
-// =============== PROFIL ÉDITABLE ===============
-function showMyProfile() {
-    showProfileModal(currentUser.uid, true);
+function playRing() {
+    try { ringAudio = new Audio('ring.mp3'); ringAudio.loop = true; ringAudio.volume = .5; ringAudio.play().catch(()=>{}); } catch(_){}
+}
+function stopRing() {
+    if (ringAudio) { ringAudio.pause(); ringAudio = null; }
 }
 
-async function showProfileModal(uid, isMe = false) {
-    const snap = await db.ref(`users/${uid}`).once('value');
-    const u = snap.val();
-    if (!u) return;
+/* ────────── UTILS ────────── */
+function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    const isOwnProfile = isMe || uid === currentUser.uid;
-
-    document.getElementById('profile-avatar-img').src = u.avatar;
-    document.getElementById('edit-pseudo').value = u.pseudo;
-    document.getElementById('edit-pronouns').value = u.pronouns || '';
-    document.getElementById('edit-bio').value = u.bio || '';
-
-    document.getElementById('edit-pseudo').disabled = !isOwnProfile;
-    document.getElementById('edit-pronouns').disabled = !isOwnProfile;
-    document.getElementById('edit-bio').disabled = !isOwnProfile;
-    document.getElementById('edit-btn').style.display = isOwnProfile ? 'block' : 'none';
-    document.getElementById('save-btn').classList.add('hidden');
-
-    window.tempProfileUid = uid;
-    document.getElementById('modal-profile').classList.remove('hidden');
+function esc(s) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
 }
 
-function toggleEditMode() {
-    isEditing = !isEditing;
-    ['edit-pseudo', 'edit-pronouns', 'edit-bio'].forEach(id => {
-        document.getElementById(id).disabled = !isEditing;
-    });
-    document.getElementById('edit-btn').textContent = isEditing ? 'Annuler' : 'Modifier';
-    document.getElementById('save-btn').classList.toggle('hidden', !isEditing);
+function fmtTime(ts) {
+    return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-async function saveMyProfile() {
-    const updates = {
-        pseudo: document.getElementById('edit-pseudo').value.trim(),
-        pronouns: document.getElementById('edit-pronouns').value.trim(),
-        bio: document.getElementById('edit-bio').value.trim()
-    };
-
-    if (!updates.pseudo) return alert("Le pseudo ne peut pas être vide");
-
-    try {
-        await db.ref(`users/${currentUser.uid}`).update(updates);
-        const oldPseudo = document.getElementById('my-pseudo').textContent;
-        if (updates.pseudo.toLowerCase() !== oldPseudo.toLowerCase()) {
-            await db.ref(`usernames/${oldPseudo.toLowerCase()}`).remove();
-            await db.ref(`usernames/${updates.pseudo.toLowerCase()}`).set(currentUser.uid);
-        }
-        
-        document.getElementById('my-pseudo').textContent = updates.pseudo;
-        toggleEditMode();
-        alert("Profil mis à jour !");
-    } catch (err) {
-        alert("Erreur : " + err.message);
-    }
-}
-
-async function changeMyAvatar(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = async e => {
-        const base64 = e.target.result;
-        await db.ref(`users/${currentUser.uid}/avatar`).set(base64);
-        document.getElementById('profile-avatar-img').src = base64;
-        document.getElementById('my-avatar').src = base64;
-        alert("Avatar mis à jour (base64 – stockage limité, préfère Firebase Storage en prod)");
-    };
-    reader.readAsDataURL(file);
-}
-
-// =============== UTILS ===============
-function hideModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-}
-
-function blockCurrentProfile() {
-    if (confirm("Bloquer cet utilisateur ?")) {
-        db.ref(`users/${currentUser.uid}/blocked/${window.tempProfileUid}`).set(true);
-        hideModal('modal-profile');
-    }
-}
-
-function removeCurrentFriend() {
-    if (confirm("Retirer des amis ?")) {
-        db.ref(`users/${currentUser.uid}/friends/${window.tempProfileUid}`).remove();
-        db.ref(`users/${window.tempProfileUid}/friends/${currentUser.uid}`).remove();
-        hideModal('modal-profile');
-        loadFriendsAndConversations();
-    }
-}
-
-function showChatOptions() {
-    alert("Options supplémentaires (bloquer, quitter groupe, etc.)");
-}
-
-async function toggleNotifications() {
-    if (Notification.permission === "granted") {
-        new Notification("KyChat", { body: "Notifications déjà activées ✅" });
-    } else {
-        const permission = await Notification.requestPermission();
-        if (permission === "granted") {
-            new Notification("KyChat", { body: "Notifications activées !" });
-        }
-    }
+let _toastTimer = null;
+function showToast(msg) {
+    const old = document.querySelector('.toast');
+    if (old) old.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.remove(), 2800);
 }
 
 async function checkBanStatus() {
     if (!currentUser) return;
     const snap = await db.ref(`users/${currentUser.uid}/banned`).once('value');
     if (snap.val() === true) {
-        document.getElementById('app-screen').classList.add('hidden');
+        document.getElementById('app-screen').style.display = 'none';
         document.getElementById('banned-screen').classList.remove('hidden');
     }
 }
 
-function filterConversations() {
-    console.log("Recherche :", document.getElementById('search-input').value);
-}
-
-console.log("%c🚀 KyChat chargé – sonnerie corrigée, profil éditable, écran appel centré", "color:#22c55e; font-size:15px");
+console.log('%c🚀 KyChat v2 — typing, notifications, bulles animées, profil complet', 'color:#22c55e;font-size:14px;font-weight:700');
 </script>
 </body>
 </html>
