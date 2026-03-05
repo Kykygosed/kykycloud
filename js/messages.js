@@ -2,17 +2,26 @@
    MESSAGES — send, receive, reply, edit, delete, images
 ───────────────────────────────────────── */
 function loadMessages() {
-  el('messages-area').innerHTML = ''; isInitialLoad = true;
+  const area = el('messages-area');
+  area.innerHTML = ''; isInitialLoad = true;
+  // After the initial batch renders, scroll to bottom once
+  let batchDone = false;
   msgRef = db.ref(`messages/${chatId}`).limitToLast(100).on('child_added', s => {
     appendMsg(s.val(), s.key);
-    setTimeout(() => isInitialLoad = false, 800);
+    if (!batchDone) {
+      clearTimeout(window._scrollTO);
+      window._scrollTO = setTimeout(() => {
+        area.scrollTop = area.scrollHeight;
+        batchDone = true;
+        isInitialLoad = false;
+      }, 200);
+    }
   });
-  // Listen for edits / deletes on loaded messages
   db.ref(`messages/${chatId}`).limitToLast(100).on('child_changed', s => {
     updateMsgDOM(s.key, s.val());
   });
   db.ref(`messages/${chatId}`).on('child_removed', s => {
-    document.querySelector(`.bubble-row[data-msg-id="${s.key}"]`)?.remove();
+    document.querySelector('.bubble-row[data-msg-id="' + s.key + '"]')?.remove();
   });
 }
 
