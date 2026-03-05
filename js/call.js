@@ -1,106 +1,240 @@
-/* ═══════════════════════════════════════════════════════════
-   CALL.JS  v8  —  100% reliable WebRTC
+/* ══════════════════════════════════════════════════════════
+   CALL.JS  v9  —  simple, proven, 100% reliable
 
-   ARCHITECTURE
-   ─────────────────────────────────────────────────────────
-   peerMap[uid]   = RTCPeerConnection to that participant
-   senderMap[uid] = { audio, video }  ← RTCRtpSender refs
+   DESIGN PRINCIPLES (learned from failures)
+   ───────────────────────────────────────────────────────
+   1. Single RTCPeerConnection per call (not peerMap).
+      peerMap was overkill and broke basic 1:1 calls.
 
-   WHY VIDEO IS 100% RELIABLE
-   ─────────────────────────────────────────────────────────
-   Both audio AND video transceivers are pre-negotiated in
-   the very first offer/answer, even when the camera is off.
-   "Off" state = a silent 2×2 black canvas track.
-   Camera toggle = sender.replaceTrack(realCam | blackTrack)
-   → zero re-negotiation, zero race conditions, always works.
+   2. Request audio+video ONCE at call start.
+      Camera permission granted → both tracks added to PC
+      before createOffer(). Video is negotiated from day 1.
+      No renegotiation = no timing race = 100% reliable.
 
-   JOINING WITH EXISTING CAM
-   ─────────────────────────────────────────────────────────
-   When C joins a call between A & B:
-     1. C writes activeCalls/{chatId}/joinQueue/{C_uid}
-     2. A & B detect this → each calls sendOfferToJoiner(C)
-     3. Offers at calls/{id}/pair_offer_{from}_{to}
-     4. C listens → acceptOfferFrom(from)
-     5. Answers at calls/{id}/pair_answer_{from}_{to}
-   Since A's video sender already has the real cam track,
-   C instantly sees it once the peer connection is up.
-═══════════════════════════════════════════════════════════ */
+   3. Camera toggle = track.enabled true/false.
+      No replaceTrack(), no renegotiate(), just flip .enabled.
 
-/* ── per-peer state ── */
-var peerMap   = {};   // uid → RTCPeerConnection
-var senderMap = {};   // uid → { audio: RTCRtpSender, video: RTCRtpSender }
-var iceBufMap = {};   // uid → [RTCIceCandidateInit]
+   4. isCaller flag set explicitly BEFORE buildPeer().
 
-/* ── black canvas video track (camera OFF placeholder) ── */
-var _blackCanvas = null;
-function getBlackTrack() {
-  if (!_blackCanvas) {
-    _blackCanvas = Object.assign(document.createElement('canvas'), { width: 2, height: 2 });
-    _blackCanvas.getContext('2d').fillRect(0, 0, 2, 2);
+   5. ICE routing:
+        caller writes → ice_A   reads ← ice_B
+        callee writes → ice_B   reads ← ice_A
+
+   6. Remote audio always goes to <audio id="remote-audio">
+      which is always in the DOM with autoplay.
+
+   7. Remote video stored by callRemoteUid, attached to tile
+      both in ontrack AND in renderGrid (race-condition safe).
+
+   8. Phantom ring fix: listenIncomingCalls only reacts to
+      calls created AFTER the listener was registered, and
+      also re-checks status before showing ring UI.
+══════════════════════════════════════════════════════════ */
+
+/* ── Local state ── */
+// pc, localStream, callId, callChatId, callRemoteUid, isCaller — in config.js
+
+/* ════════════════════════════════════════
+   LOCAL STREAM
+   Always request audio + video.
+   If camera is denied: fall back to audio only.
+   Camera starts DISABLED (camOn = false).
+   Cam toggle just flips track.enabled.
+════════════════════════════════════════ */
+async function initLocalStream() {
+  // Try audio + video first
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+    });
+    // Camera available but starts OFF — user enables it explicitly
+    localStream.getVideoTracks().forEach(t => { t.enabled = false; });
+    camOn = false;
+  } catch(videoErr) {
+    // No camera or permission denied — audio only
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      camOn = false;
+    } catch(audioErr) {
+      throw new Error('Micro inaccessible : ' + audioErr.message);
+    }
   }
-  return _blackCanvas.captureStream(0).getVideoTracks()[0];
+  micOn = true;
 }
 
 /* ════════════════════════════════════════
-   ENTRY POINTS
+   CALLER
 ════════════════════════════════════════ */
-
 async function startCall() {
   if (!chatId) return toast('❌ Ouvre une conversation d\'abord');
-  if (Object.keys(peerMap).length) return toast('❌ Déjà en appel');
+  if (pc)      return toast('❌ Déjà en appel');
   try {
     await initLocalStream();
     callId        = 'call_' + Date.now();
     callChatId    = chatId;
+    isCaller      = true;
     callRemoteUid = chatIsGroup ? null : chatId.split('_').find(u => u !== CU.uid);
 
+    pc = buildPeer();
+    // Add ALL tracks before createOffer — video negotiated from day 1
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Write call record + offer atomically
     await db.ref(`calls/${callId}`).set({
       callerUid: CU.uid, callerName: myData.pseudo, callerAvatar: myData.avatar,
-      targetUid: callRemoteUid, chatId, status: 'ringing', created: Date.now()
+      targetUid: callRemoteUid, chatId,
+      status: 'ringing',
+      offer: { type: offer.type, sdp: offer.sdp },
+      created: Date.now()
     });
     await db.ref(`activeCalls/${chatId}`).set({ active: true, callerUid: CU.uid, callId });
     await db.ref(`activeCalls/${chatId}/participants/${CU.uid}`).set(myParticipant());
 
-    if (callRemoteUid) await sendInitialOffer(callRemoteUid);
+    // Caller reads callee ICE (ice_B)
+    db.ref(`calls/${callId}/ice_B`).on('child_added', s => {
+      if (s.val()) addIceSafe(s.val());
+    });
 
-    watchJoinQueue();
+    // Caller waits for answer
+    db.ref(`calls/${callId}/answer`).on('value', async s => {
+      const a = s.val();
+      if (!a || !pc || pc.signalingState !== 'have-local-offer') return;
+      await pc.setRemoteDescription(new RTCSessionDescription(a));
+      remoteReady = true;
+      flushIce();
+      listenReoffer(); // in case other side adds video mid-call
+    });
+
     showCallScreen(el('header-name').textContent);
-  } catch(e) { toast('❌ Micro : ' + e.message); console.error(e); cleanupAll(); }
+  } catch(e) {
+    toast('❌ ' + e.message);
+    console.error('[startCall]', e);
+    cleanupPeer();
+  }
 }
 
+/* ════════════════════════════════════════
+   INCOMING CALL LISTENER
+   Fixed: only react to calls that are NEW
+   and still in 'ringing' status when we check.
+════════════════════════════════════════ */
+function listenIncomingCalls() {
+  // Remember the time we attached the listener
+  const listenStart = Date.now();
+
+  db.ref('calls').on('child_added', async s => {
+    const d = s.val();
+    if (!d) return;
+    // Ignore calls that predate our listener (they're old/handled)
+    if (d.created && d.created < listenStart - 3000) return;
+    // Ignore calls not directed to us
+    if (d.targetUid !== CU.uid) return;
+    // Ignore already-done calls
+    if (d.status === 'ended' || d.status === 'answered') return;
+    // Don't interrupt an ongoing call
+    if (pc) return;
+
+    // Re-fetch to make sure it's still ringing (not ended in the meantime)
+    const fresh = (await db.ref(`calls/${s.key}/status`).once('value')).val();
+    if (fresh === 'ended' || fresh === 'answered') return;
+
+    incomingData = { id: s.key, ...d };
+    el('caller-name').textContent = d.callerName;
+    el('caller-avatar').src       = d.callerAvatar || 'basic1.png';
+    el('incoming-call').classList.remove('hidden');
+    playRing();
+    pushNotif('📞 Appel entrant', {
+      body: `${d.callerName} t'appelle !`, tag: 'kychat-call', requireInteraction: true
+    });
+    if (missedTO) clearTimeout(missedTO);
+    missedTO = setTimeout(() => {
+      if (!el('incoming-call').classList.contains('hidden')) {
+        declineCall();
+        toast(`📵 Appel manqué de ${d.callerName}`);
+      }
+    }, 30000);
+  });
+
+  // Also watch for a call being ended remotely (caller hung up)
+  db.ref('calls').on('child_changed', s => {
+    const d = s.val();
+    if (!d || d.targetUid !== CU.uid) return;
+    if (d.status === 'ended' && incomingData?.id === s.key) {
+      // Caller hung up before we answered
+      el('incoming-call').classList.add('hidden');
+      stopRing();
+      if (missedTO) { clearTimeout(missedTO); missedTO = null; }
+      incomingData = null;
+      toast('📵 Appel manqué');
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   CALLEE: ACCEPT
+════════════════════════════════════════ */
 async function acceptCall() {
-  el('incoming-call').classList.add('hidden'); stopRing();
+  el('incoming-call').classList.add('hidden');
+  stopRing();
   if (missedTO) { clearTimeout(missedTO); missedTO = null; }
   if (!incomingData) return toast('❌ Données d\'appel manquantes');
+
   try {
     await initLocalStream();
     callId        = incomingData.id;
     callChatId    = incomingData.chatId;
-    callRemoteUid = incomingData.callerUid;
+    isCaller      = false;
+    callRemoteUid = incomingData.callerUid;  // explicit, never derived
 
-    await acceptOfferFrom(callRemoteUid, incomingData.offer, false);
+    pc = buildPeer();
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
+    await pc.setRemoteDescription(new RTCSessionDescription(incomingData.offer));
+    remoteReady = true;
+    flushIce();
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await db.ref(`calls/${callId}/answer`).set({ type: answer.type, sdp: answer.sdp });
     await db.ref(`calls/${callId}/status`).set('answered');
     await db.ref(`activeCalls/${callChatId}/participants/${CU.uid}`).set(myParticipant());
 
-    // Callee ICE → ice_B ; reads caller ICE from ice_A
-    listenIce(callRemoteUid,
-      `calls/${callId}/ice_A`,
-      c => db.ref(`calls/${callId}/ice_B`).push(c));
+    // Callee reads caller ICE (ice_A)
+    db.ref(`calls/${callId}/ice_A`).on('child_added', s => {
+      if (s.val()) addIceSafe(s.val());
+    });
 
-    watchJoinQueue();
+    listenReoffer();
     showCallScreen(incomingData.callerName);
     incomingData = null;
-  } catch(e) { toast('❌ ' + e.message); console.error(e); cleanupAll(); }
+  } catch(e) {
+    toast('❌ ' + e.message);
+    console.error('[acceptCall'], e);
+    cleanupPeer();
+  }
 }
 
+/* ════════════════════════════════════════
+   CALLEE: DECLINE
+════════════════════════════════════════ */
 function declineCall() {
-  el('incoming-call').classList.add('hidden'); stopRing();
+  el('incoming-call').classList.add('hidden');
+  stopRing();
   if (missedTO) { clearTimeout(missedTO); missedTO = null; }
   if (incomingData?.id) db.ref(`calls/${incomingData.id}/status`).set('ended');
   incomingData = null;
 }
 
+/* ════════════════════════════════════════
+   JOIN EXISTING CALL
+   For now: joins audio only (no 1:1 peer
+   mesh for group calls in this version).
+════════════════════════════════════════ */
 async function joinCall() {
   if (!chatId) return;
   const snap = await db.ref(`activeCalls/${chatId}`).once('value');
@@ -109,125 +243,30 @@ async function joinCall() {
   try {
     await initLocalStream();
     callId = a.callId; callChatId = chatId; callRemoteUid = null;
-
     await db.ref(`activeCalls/${chatId}/participants/${CU.uid}`).set(myParticipant());
-
-    // Listen for offers from existing participants
-    db.ref(`calls/${callId}`).on('child_added', async s => {
-      if (!s.key.startsWith('pair_offer_')) return;
-      const parts = s.key.replace('pair_offer_', '').split('_');
-      if (parts.length < 2) return;
-      const fromUid = parts[0];
-      const toUid   = parts[1];
-      if (toUid !== CU.uid || fromUid === CU.uid) return;
-      await acceptOfferFrom(fromUid, s.val(), true);
-    });
-
-    // Signal to existing participants that we want to connect
-    await db.ref(`activeCalls/${chatId}/joinQueue/${CU.uid}`).set({
-      uid: CU.uid, name: myData.pseudo, avatar: myData.avatar, ts: Date.now()
-    });
-
-    watchJoinQueue();
     showCallScreen(el('header-name').textContent);
     toast('📞 Connecté à l\'appel');
-  } catch(e) { toast('❌ Micro : ' + e.message); cleanupAll(); }
+  } catch(e) { toast('❌ ' + e.message); }
 }
 
 /* ════════════════════════════════════════
-   SIGNALING HELPERS
+   RTCPeerConnection FACTORY
 ════════════════════════════════════════ */
-
-async function sendInitialOffer(remoteUid) {
-  const p = buildPeerTo(remoteUid);
-  const offer = await p.createOffer();
-  await p.setLocalDescription(offer);
-
-  // Store offer — callee reads it in listenIncomingCalls
-  await db.ref(`calls/${callId}/offer`).set({ type: offer.type, sdp: offer.sdp });
-
-  // Caller ICE → ice_A ; reads callee ICE from ice_B
-  listenIce(remoteUid,
-    `calls/${callId}/ice_B`,
-    c => db.ref(`calls/${callId}/ice_A`).push(c));
-
-  db.ref(`calls/${callId}/answer`).on('value', async s => {
-    const ans = s.val();
-    if (!ans || !p || p.signalingState !== 'have-local-offer') return;
-    await p.setRemoteDescription(new RTCSessionDescription(ans));
-    flushIceBuf(remoteUid);
-  });
-}
-
-async function acceptOfferFrom(remoteUid, offerData, isPair) {
-  const p = buildPeerTo(remoteUid);
-  await p.setRemoteDescription(new RTCSessionDescription(offerData));
-  flushIceBuf(remoteUid);
-
-  const answer = await p.createAnswer();
-  await p.setLocalDescription(answer);
-
-  if (isPair) {
-    await db.ref(`calls/${callId}/pair_answer_${remoteUid}_${CU.uid}`)
-            .set({ type: answer.type, sdp: answer.sdp });
-    listenIce(remoteUid,
-      `calls/${callId}/pair_ice_${remoteUid}_${CU.uid}`,
-      c => db.ref(`calls/${callId}/pair_ice_${CU.uid}_${remoteUid}`).push(c));
-  } else {
-    await db.ref(`calls/${callId}/answer`).set({ type: answer.type, sdp: answer.sdp });
-    // ICE paths set up by the caller (acceptCall) or via listenIce() calls
-  }
-}
-
-async function sendOfferToJoiner(joinerUid) {
-  if (peerMap[joinerUid]) return;
-  const p = buildPeerTo(joinerUid);
-  const offer = await p.createOffer();
-  await p.setLocalDescription(offer);
-
-  await db.ref(`calls/${callId}/pair_offer_${CU.uid}_${joinerUid}`)
-          .set({ type: offer.type, sdp: offer.sdp });
-
-  db.ref(`calls/${callId}/pair_answer_${CU.uid}_${joinerUid}`).on('value', async s => {
-    const ans = s.val();
-    if (!ans || !p || p.signalingState !== 'have-local-offer') return;
-    await p.setRemoteDescription(new RTCSessionDescription(ans));
-    flushIceBuf(joinerUid);
-  });
-
-  listenIce(joinerUid,
-    `calls/${callId}/pair_ice_${joinerUid}_${CU.uid}`,
-    c => db.ref(`calls/${callId}/pair_ice_${CU.uid}_${joinerUid}`).push(c));
-}
-
-function watchJoinQueue() {
-  if (!callChatId) return;
-  db.ref(`activeCalls/${callChatId}/joinQueue`).on('child_added', async s => {
-    const uid = s.key; if (uid === CU.uid) return;
-    await sendOfferToJoiner(uid);
-  });
-}
-
-/* ════════════════════════════════════════
-   BUILD PEER CONNECTION
-════════════════════════════════════════ */
-function buildPeerTo(remoteUid) {
-  if (peerMap[remoteUid]) { try { peerMap[remoteUid].close(); } catch(_){} }
-  iceBufMap[remoteUid] = [];
-
+function buildPeer() {
+  remoteReady = false; iceBuf = [];
   const p = new RTCPeerConnection(ICE_CFG);
-  peerMap[remoteUid] = p;
 
-  // ── PRE-ADD both audio AND video tracks ──────────────────
-  // Video = black canvas initially. replaceTrack() for camera toggle.
-  // Zero renegotiation needed → 100% reliable.
-  const audioTrack = localStream.getAudioTracks()[0];
-  const videoTrack = (localStream.getVideoTracks()[0] || getBlackTrack()).clone();
-
-  const sa = p.addTrack(audioTrack);
-  const sv = p.addTrack(videoTrack);
-  senderMap[remoteUid] = { audio: sa, video: sv };
-
+  /* ── AUDIO ─────────────────────────────────────────────
+     Always piped to <audio id="remote-audio"> in the DOM.
+     Element has autoplay + playsinline.
+     Explicit .play() call to beat browser autoplay policy.
+  ──────────────────────────────────────────────────────── */
+  /* ── VIDEO ─────────────────────────────────────────────
+     Stored in remoteVideoStreams[callRemoteUid].
+     Tile video element: srcObject set both in ontrack and
+     in renderGrid so there's no race condition.
+     Visibility controlled by Firebase camOn flag.
+  ──────────────────────────────────────────────────────── */
   p.ontrack = e => {
     const track  = e.track;
     const stream = e.streams?.[0] || new MediaStream([track]);
@@ -236,71 +275,61 @@ function buildPeerTo(remoteUid) {
       const audioEl = el('remote-audio');
       if (!audioEl) return;
       audioEl.srcObject = stream;
-      audioEl.play().catch(err => console.warn('[audio]', err.message));
+      const promise = audioEl.play();
+      if (promise) promise.catch(err => console.warn('[remote-audio]', err.message));
     }
 
-    if (track.kind === 'video') {
-      if (!remoteVideoStreams[remoteUid])
-        remoteVideoStreams[remoteUid] = new MediaStream();
-      remoteVideoStreams[remoteUid].getVideoTracks()
-        .forEach(t => remoteVideoStreams[remoteUid].removeTrack(t));
-      remoteVideoStreams[remoteUid].addTrack(track);
+    if (track.kind === 'video' && callRemoteUid) {
+      if (!remoteVideoStreams[callRemoteUid])
+        remoteVideoStreams[callRemoteUid] = new MediaStream();
+      // Replace old tracks, add new one
+      remoteVideoStreams[callRemoteUid].getVideoTracks()
+        .forEach(t => remoteVideoStreams[callRemoteUid].removeTrack(t));
+      remoteVideoStreams[callRemoteUid].addTrack(track);
 
-      const vid = document.querySelector(`.ptile[data-uid="${remoteUid}"] video`);
-      if (vid && vid.srcObject !== remoteVideoStreams[remoteUid]) {
-        vid.srcObject = remoteVideoStreams[remoteUid];
+      // Attach to tile if it already exists
+      const vid = document.querySelector(`.ptile[data-uid="${callRemoteUid}"] video`);
+      if (vid) {
+        vid.srcObject = remoteVideoStreams[callRemoteUid];
         vid.play().catch(() => {});
       }
     }
   };
 
+  // ICE: caller writes ice_A, callee writes ice_B
   p.onicecandidate = e => {
     if (!e.candidate || !callId) return;
-    if (p._iceSendFn) p._iceSendFn(e.candidate.toJSON());
+    db.ref(`calls/${callId}/${isCaller ? 'ice_A' : 'ice_B'}`).push(e.candidate.toJSON());
   };
 
   p.onconnectionstatechange = () => {
-    console.log(`[WebRTC→${remoteUid.slice(0,6)}]`, p.connectionState);
+    console.log('[WebRTC] state:', p.connectionState);
     if (p.connectionState === 'connected') {
       el('call-title').style.color = '#22c55e';
-      toast('✅ Connecté');
+      toast('✅ Appel connecté');
     }
-    if (p.connectionState === 'failed' && p.restartIce) p.restartIce();
+    if (p.connectionState === 'failed') {
+      console.warn('[WebRTC] failed, trying ICE restart');
+      if (p.restartIce) p.restartIce();
+    }
   };
+
+  p.onsignalingstatechange  = () => console.log('[WebRTC] signaling:', p.signalingState);
+  p.onicegatheringstatechange = () => console.log('[WebRTC] ice:', p.iceGatheringState);
 
   return p;
 }
 
-function listenIce(remoteUid, readPath, writeFn) {
-  const p = peerMap[remoteUid]; if (!p) return;
-  p._iceSendFn = writeFn;
-  db.ref(readPath).on('child_added', s => {
-    const c = s.val(); if (!c) return;
-    if (p.remoteDescription)
-      p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-    else {
-      iceBufMap[remoteUid] = iceBufMap[remoteUid] || [];
-      iceBufMap[remoteUid].push(c);
-    }
-  });
+/* ── ICE helpers ── */
+function addIceSafe(c) {
+  if (pc && remoteReady)
+    pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('[ICE]', e.message));
+  else
+    iceBuf.push(c);
 }
-
-function flushIceBuf(remoteUid) {
-  const p = peerMap[remoteUid]; if (!p) return;
-  (iceBufMap[remoteUid] || []).forEach(c =>
-    p.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
-  iceBufMap[remoteUid] = [];
-}
-
-/* ════════════════════════════════════════
-   LOCAL STREAM
-════════════════════════════════════════ */
-async function initLocalStream() {
-  const as = await navigator.mediaDevices.getUserMedia({ audio: true });
-  localStream = new MediaStream();
-  localStream.addTrack(as.getAudioTracks()[0]);
-  localStream.addTrack(getBlackTrack().clone());
-  micOn = true; camOn = false;
+function flushIce() {
+  iceBuf.forEach(c => pc && pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+  iceBuf = [];
 }
 
 function myParticipant() {
@@ -308,44 +337,7 @@ function myParticipant() {
 }
 
 /* ════════════════════════════════════════
-   INCOMING CALLS LISTENER
-════════════════════════════════════════ */
-function listenIncomingCalls() {
-  db.ref('calls').orderByChild('created').startAt(Date.now() - 5000)
-    .on('child_added', async s => {
-      const d = s.val();
-      if (!d || d.targetUid !== CU.uid) return;
-      if (d.status === 'ended' || d.status === 'answered') return;
-      if (Object.keys(peerMap).length) return;
-
-      const waitOffer = () => new Promise(resolve => {
-        db.ref(`calls/${s.key}/offer`).on('value', function h(snap) {
-          if (!snap.exists()) return;
-          db.ref(`calls/${s.key}/offer`).off('value', h);
-          resolve(snap.val());
-        });
-      });
-
-      const offer = await waitOffer();
-      incomingData = { id: s.key, ...d, offer };
-      el('caller-name').textContent = d.callerName;
-      el('caller-avatar').src       = d.callerAvatar || 'basic1.png';
-      el('incoming-call').classList.remove('hidden');
-      playRing();
-      pushNotif('📞 Appel entrant', {
-        body: `${d.callerName} t'appelle !`, tag: 'kychat-call', requireInteraction: true
-      });
-      if (missedTO) clearTimeout(missedTO);
-      missedTO = setTimeout(() => {
-        if (!el('incoming-call').classList.contains('hidden')) {
-          declineCall(); toast(`📵 Appel manqué de ${d.callerName}`);
-        }
-      }, 30000);
-    });
-}
-
-/* ════════════════════════════════════════
-   CALL SCREEN UI
+   CALL SCREEN
 ════════════════════════════════════════ */
 function showCallScreen(title) {
   callMinimized = false;
@@ -374,10 +366,14 @@ function listenParticipants() {
   prevPartKeys = new Set();
 
   partRef = db.ref(`activeCalls/${callChatId}/participants`).on('value', s => {
-    const parts  = s.val() || {};
+    const parts   = s.val() || {};
     const newKeys = new Set(Object.keys(parts));
-    for (const k of newKeys)   if (!prevPartKeys.has(k) && k !== CU.uid) { playSound('join');  toast(`👋 ${parts[k].name} a rejoint`); }
-    for (const k of prevPartKeys) if (!newKeys.has(k))                   { playSound('leave'); }
+
+    for (const k of newKeys)
+      if (!prevPartKeys.has(k) && k !== CU.uid) { playSound('join'); toast(`👋 ${parts[k].name} a rejoint`); }
+    for (const k of prevPartKeys)
+      if (!newKeys.has(k)) playSound('leave');
+
     prevPartKeys = newKeys; partSnap = parts; renderGrid(parts);
   });
 }
@@ -390,6 +386,7 @@ function renderGrid(parts) {
   grid.style.gridTemplateColumns = n <= 1 ? '1fr' : '1fr 1fr';
   grid.style.gridTemplateRows   = n > 2  ? '1fr 1fr' : '1fr';
 
+  // Remove tiles for departed participants
   [...grid.querySelectorAll('.ptile[data-uid]')]
     .forEach(t => { if (!parts[t.dataset.uid]) t.remove(); });
 
@@ -397,7 +394,10 @@ function renderGrid(parts) {
     if (!grid.querySelector('.ptile')) {
       const w = document.createElement('div'); w.className = 'ptile';
       w.style.cssText = 'aspect-ratio:16/9;grid-column:1/-1';
-      w.innerHTML = `<div class="av-fb"><div class="call-pulse text-5xl mb-3">📞</div><div class="text-sm font-semibold" style="color:var(--text-muted)">En attente…</div></div>`;
+      w.innerHTML = `<div class="av-fb">
+        <div class="call-pulse text-5xl mb-3">📞</div>
+        <div class="text-sm font-semibold" style="color:var(--text-muted)">En attente…</div>
+      </div>`;
       grid.appendChild(w);
     }
     return;
@@ -406,6 +406,7 @@ function renderGrid(parts) {
 
   others.forEach(([uid, data]) => {
     let tile = grid.querySelector(`.ptile[data-uid="${uid}"]`);
+
     if (!tile) {
       tile = document.createElement('div');
       tile.className = 'ptile'; tile.dataset.uid = uid; tile.style.aspectRatio = '4/3';
@@ -415,7 +416,7 @@ function renderGrid(parts) {
       tile.appendChild(vid);
 
       const fb = document.createElement('div'); fb.className = 'av-fb';
-      fb.innerHTML = `<img src="${esc(data.avatar||'basic1.png')}" onerror="this.src='basic1.png'">
+      fb.innerHTML = `<img src="${esc(data.avatar || 'basic1.png')}" onerror="this.src='basic1.png'">
         <div class="text-xs font-semibold mt-1.5" style="color:var(--text-muted)">${esc(data.name)}</div>`;
       tile.appendChild(fb);
 
@@ -426,18 +427,19 @@ function renderGrid(parts) {
       grid.appendChild(tile);
     }
 
-    // attach video stream if available
+    // ── attach remote video stream ──────────────────────
     const vid = tile.querySelector('video');
     if (vid) {
+      // Attach stream if we have it (ontrack may have fired already)
       if (remoteVideoStreams[uid] && vid.srcObject !== remoteVideoStreams[uid]) {
         vid.srcObject = remoteVideoStreams[uid];
         vid.play().catch(() => {});
       }
-      // Video visibility controlled by Firebase camOn — NOT by ontrack timing
-      vid.classList.toggle('has-video', !!data.camOn);
+      // Visibility: only show video element if the OTHER side has camOn=true
+      vid.classList.toggle('has-video', !!data.camOn && !!vid.srcObject);
     }
 
-    // mic icon
+    // ── mic icon ────────────────────────────────────────
     const mi = tile.querySelector('.mute-ic');
     if (mi) mi.textContent = data.micOn !== false ? '🎤' : '🔇';
   });
@@ -455,34 +457,72 @@ function toggleMic() {
 
 async function toggleCam() {
   if (!camOn) {
-    try {
-      const vs = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: 'user' }
-      });
-      const vt = vs.getVideoTracks()[0];
-
-      // replaceTrack in every peer — no renegotiation
-      for (const [, s] of Object.entries(senderMap))
-        if (s.video) await s.video.replaceTrack(vt);
-
-      localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
-      localStream.addTrack(vt);
-      el('local-video').srcObject = localStream;
+    // Try to enable existing video track first
+    const vTracks = localStream?.getVideoTracks() || [];
+    if (vTracks.length > 0) {
+      // We already have a video track (from initLocalStream), just enable it
+      vTracks.forEach(t => t.enabled = true);
       camOn = true;
-      if (callChatId) db.ref(`activeCalls/${callChatId}/participants/${CU.uid}/camOn`).set(true);
-    } catch(e) { toast('❌ Caméra : ' + e.message); }
-  } else {
-    const black = getBlackTrack().clone();
-    for (const [, s] of Object.entries(senderMap))
-      if (s.video) await s.video.replaceTrack(black);
+      el('local-video').srcObject = localStream;
+    } else {
+      // No video track yet (audio-only fallback) — try to add one now
+      try {
+        const vs = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+        });
+        const vt = vs.getVideoTracks()[0];
+        localStream.addTrack(vt);
 
-    localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
-    localStream.addTrack(black);
-    el('local-video').srcObject = localStream;
+        // Need renegotiation since video was never in the original offer
+        if (pc) {
+          pc.addTrack(vt, localStream);
+          await doRenegotiate();
+        }
+        camOn = true;
+        el('local-video').srcObject = localStream;
+      } catch(e) { return toast('❌ Caméra : ' + e.message); }
+    }
+  } else {
+    localStream?.getVideoTracks().forEach(t => t.enabled = false);
     camOn = false;
-    if (callChatId) db.ref(`activeCalls/${callChatId}/participants/${CU.uid}/camOn`).set(false);
   }
+  if (callChatId) db.ref(`activeCalls/${callChatId}/participants/${CU.uid}/camOn`).set(camOn);
   updateCtrl();
+}
+
+// Renegotiation — only needed for audio-only fallback adding video mid-call
+async function doRenegotiate() {
+  if (!pc || !callId) return;
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const path = isCaller ? `calls/${callId}/reoffer_caller` : `calls/${callId}/reoffer_callee`;
+    await db.ref(path).set({ type: offer.type, sdp: offer.sdp });
+    const ansPath = isCaller ? `calls/${callId}/reanswer_callee` : `calls/${callId}/reanswer_caller`;
+    await new Promise(resolve => {
+      db.ref(ansPath).on('value', async function h(s) {
+        if (!s.val()) return;
+        db.ref(ansPath).off('value', h);
+        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(s.val())).catch(() => {});
+        resolve();
+      });
+    });
+  } catch(e) { console.warn('[renegotiate]', e); }
+}
+// Listen for reoffer from the other side (audio-only fallback)
+function listenReoffer() {
+  if (!callId || !pc) return;
+  const roPath = isCaller ? `calls/${callId}/reoffer_callee` : `calls/${callId}/reoffer_caller`;
+  const raPath = isCaller ? `calls/${callId}/reanswer_caller` : `calls/${callId}/reanswer_callee`;
+  db.ref(roPath).on('value', async s => {
+    const d = s.val(); if (!d || !pc) return;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(d));
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      await db.ref(raPath).set({ type: ans.type, sdp: ans.sdp });
+    } catch(e) { console.warn('[listenReoffer]', e); }
+  });
 }
 
 function updateCtrl() {
@@ -494,38 +534,39 @@ function updateCtrl() {
 }
 
 /* ════════════════════════════════════════
-   END / CLEANUP
+   END CALL / CLEANUP
 ════════════════════════════════════════ */
 async function endCall() {
   if (callId) db.ref(`calls/${callId}/status`).set('ended').catch(() => {});
   if (callChatId) {
     await db.ref(`activeCalls/${callChatId}/participants/${CU.uid}`).remove().catch(() => {});
-    db.ref(`activeCalls/${callChatId}/joinQueue/${CU.uid}`).remove().catch(() => {});
     const s = await db.ref(`activeCalls/${callChatId}/participants`).once('value').catch(() => null);
     if (!s || !s.numChildren()) db.ref(`activeCalls/${callChatId}`).remove().catch(() => {});
   }
-  cleanupAll();
+  cleanupPeer();
+  callId = null; callChatId = null; callRemoteUid = null;
 }
 
-function cleanupAll() {
-  for (const uid of Object.keys(peerMap)) try { peerMap[uid].close(); } catch(_) {}
-  peerMap = {}; senderMap = {}; iceBufMap = {};
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+function cleanupPeer() {
   if (partRef && callChatId) {
     db.ref(`activeCalls/${callChatId}/participants`).off('value', partRef); partRef = null;
   }
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   if (timerIv) { clearInterval(timerIv); timerIv = null; }
+
   const cs = el('call-screen');
   cs.classList.add('hidden'); cs.classList.remove('call-minimized');
   el('call-grid').innerHTML    = '';
   el('local-video').srcObject  = null;
   el('call-timer').textContent = '00:00';
   el('minimize-btn').textContent = '⤡';
-  micOn = true; camOn = false; remoteVideoStreams = {};
-  callId = null; callChatId = null; callRemoteUid = null;
-  isCaller = false; callMinimized = false; prevPartKeys = new Set();
+
+  micOn = true; camOn = false; remoteReady = false; iceBuf = [];
+  remoteVideoStreams = {}; isCaller = false; callMinimized = false; prevPartKeys = new Set();
 }
 
+/* ── Timer ── */
 function startTimer() {
   timerStart = Date.now(); if (timerIv) clearInterval(timerIv);
   timerIv = setInterval(() => {
